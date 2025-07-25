@@ -1,6 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const secrets = require('../secrets')
+const bcrypt = require('bcrypt')
 
 // Keep original health check at root level
 router.get('/health', (req, res) => {
@@ -18,12 +19,19 @@ router.get('/status', (req, res) => {
 // Login endpoint
 router.post('/login', (req, res) => {
   const { password } = req.body
-  if (password === secrets.password) {
-    req.session.authenticated = true
-    res.status(200).json({ message: 'Login successful', authenticated: true })
-  } else {
-    res.status(401).json({ error: 'Invalid password', authenticated: false })
-  }
+  bcrypt.compare(password, secrets.bcryptPassword, (err, result) => {
+    if (err) {
+      res.status(500).json({ error: 'Internal server error', authenticated: false })
+      return
+    }
+
+    if (result) {
+      req.session.authenticated = true
+      res.status(200).json({ message: 'Login successful', authenticated: true })
+    } else {
+      res.status(401).json({ error: 'Invalid password', authenticated: false })
+    }
+  })
 })
 
 // Logout endpoint
