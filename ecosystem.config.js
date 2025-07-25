@@ -6,6 +6,7 @@ module.exports = {
       args: 'start',
       env: {
         NODE_ENV: 'production',
+        PORT: 13010,
       },
       // Memory management settings
       max_memory_restart: '350M', // Restart if memory exceeds 350MB
