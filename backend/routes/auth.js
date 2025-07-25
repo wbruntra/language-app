@@ -17,21 +17,20 @@ router.get('/status', (req, res) => {
 })
 
 // Login endpoint
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const { password } = req.body
-  bcrypt.compare(password, secrets.bcryptPassword, (err, result) => {
-    if (err) {
-      res.status(500).json({ error: 'Internal server error', authenticated: false })
-      return
-    }
-
+  try {
+    const result = await bcrypt.compare(password, secrets.bcryptPassword)
+    
     if (result) {
       req.session.authenticated = true
       res.status(200).json({ message: 'Login successful', authenticated: true })
     } else {
       res.status(401).json({ error: 'Invalid password', authenticated: false })
     }
-  })
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error', authenticated: false })
+  }
 })
 
 // Logout endpoint
