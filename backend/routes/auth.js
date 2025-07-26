@@ -3,11 +3,6 @@ const router = express.Router()
 const secrets = require('../secrets')
 const bcrypt = require('bcrypt')
 
-// Keep original health check at root level
-router.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK' })
-})
-
 router.get('/status', (req, res) => {
   if (req.session && req.session.authenticated) {
     res.status(200).json({ status: 'Authenticated', authenticated: true })

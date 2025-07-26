@@ -5,7 +5,7 @@ const { OpenAI } = require('openai')
 const ffmpeg = require('fluent-ffmpeg')
 const multer = require('multer')
 const { Readable, PassThrough } = require('stream')
-const { requireLogin } = require('./middleware/auth')
+const { requireLogin } = require('../middleware/auth')
 
 // Use memory storage instead of disk storage
 const upload = multer({

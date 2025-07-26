@@ -26,7 +26,7 @@ app.use(
 
 app.use('/api/auth', require('./routes/auth'))
 
-const transcriptionsRouter = require('./transcriptions_v2')
+const transcriptionsRouter = require('./routes/transcriptions')
 app.use('/api', transcriptionsRouter)
 
 
