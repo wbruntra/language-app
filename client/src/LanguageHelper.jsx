@@ -33,7 +33,7 @@ function LanguageHelper({ selectedLanguage }) {
     german: { name: 'German', nativeName: 'Deutsch', flag: '🇩🇪' },
     italian: { name: 'Italian', nativeName: 'Italiano', flag: '🇮🇹' },
     portuguese: { name: 'Portuguese', nativeName: 'Português', flag: '🇵🇹' },
-    english: { name: 'English', nativeName: 'English', flag: '🇺🇸' }
+    english: { name: 'English', nativeName: 'English', flag: '🇺🇸' },
   }
 
   const currentLanguage = languages[currentSelectedLanguage] || languages.spanish
@@ -266,7 +266,7 @@ function LanguageHelper({ selectedLanguage }) {
       setLastCorrection(response.data.correction)
       setLastAlternative(response.data.alternative)
       setLastExplanation(response.data.explanation)
-      
+
       // Expand correction panel when new correction arrives
       setCorrectionExpanded(true)
 
@@ -385,8 +385,8 @@ function LanguageHelper({ selectedLanguage }) {
             <div className="card-body p-3">
               <h6 className="card-title">Start a Conversation</h6>
               <p className="card-text small">
-                Get a conversation scenario to practice your {currentLanguage.name}, or start your own
-                conversation.
+                Get a conversation scenario to practice your {currentLanguage.name}, or start your
+                own conversation.
               </p>
 
               <div className="mb-3">
@@ -437,19 +437,27 @@ function LanguageHelper({ selectedLanguage }) {
       {lastCorrection && (
         <div className="correction-display mt-3">
           <div className="alert alert-success p-3">
-            <div 
+            <div
               className="d-flex justify-content-between align-items-center"
               style={{ cursor: 'pointer' }}
               onClick={() => setCorrectionExpanded(!correctionExpanded)}
             >
               <h6 className="mb-0">
-                {correctionExpanded ? 'Corrections & Alternatives' : `Corrected: "${lastCorrection}"`}
+                {correctionExpanded
+                  ? 'Corrections & Alternatives'
+                  : `Corrected: "${
+                      lastCorrection === 'Perfect' ? (
+                        <span role="img" aria-label="thumbs up">
+                          👍
+                        </span>
+                      ) : (
+                        lastCorrection
+                      )
+                    }"`}
               </h6>
-              <span className="badge bg-primary">
-                {correctionExpanded ? '−' : '+'}
-              </span>
+              <span className="badge bg-primary">{correctionExpanded ? '−' : '+'}</span>
             </div>
-            
+
             <div className={`collapse ${correctionExpanded ? 'show' : ''}`}>
               <div className="mt-3">
                 <h6>Corrected Version:</h6>
@@ -499,12 +507,12 @@ function LanguageHelper({ selectedLanguage }) {
               </div>
             ))}
           </div>
-          <button
+          {/* <button
             className="btn btn-sm btn-outline-secondary mt-2 w-100"
             onClick={clearConversation}
           >
             Clear Conversation
-          </button>
+          </button> */}
         </div>
       )}
 
@@ -601,14 +609,14 @@ function LanguageHelper({ selectedLanguage }) {
 // Language Selector Component for the navbar
 export function LanguageSelector({ selectedLanguage, onLanguageChange }) {
   const [showDropdown, setShowDropdown] = useState(false)
-  
+
   const languages = {
     spanish: { name: 'Spanish', nativeName: 'Español', flag: '🇪🇸' },
     french: { name: 'French', nativeName: 'Français', flag: '🇫🇷' },
     german: { name: 'German', nativeName: 'Deutsch', flag: '🇩🇪' },
     // italian: { name: 'Italian', nativeName: 'Italiano', flag: '🇮🇹' },
     // portuguese: { name: 'Portuguese', nativeName: 'Português', flag: '🇵🇹' },
-    english: { name: 'English', nativeName: 'English', flag: '🇺🇸' }
+    english: { name: 'English', nativeName: 'English', flag: '🇺🇸' },
   }
 
   const currentLanguage = languages[selectedLanguage] || languages.spanish
@@ -622,10 +630,12 @@ export function LanguageSelector({ selectedLanguage, onLanguageChange }) {
         aria-expanded={showDropdown}
       >
         {/* <i className="bi bi-gear me-1"></i> */}
-        <span className="d-none d-sm-inline">{currentLanguage.flag} {currentLanguage.name}</span>
+        <span className="d-none d-sm-inline">
+          {currentLanguage.flag} {currentLanguage.name}
+        </span>
         <span className="d-inline d-sm-none">{currentLanguage.flag}</span>
       </button>
-      
+
       {showDropdown && (
         <div className="dropdown-menu dropdown-menu-end show" style={{ minWidth: '200px' }}>
           <h6 className="dropdown-header">Choose Language</h6>
