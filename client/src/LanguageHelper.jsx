@@ -23,6 +23,14 @@ function LanguageHelper({ selectedLanguage }) {
   const [currentScenario, setCurrentScenario] = useState(null)
   const [scenarioSuggestion, setScenarioSuggestion] = useState('')
 
+  // NEW: Follow-up question state
+  const [followupHistory, setFollowupHistory] = useState([])
+  const [followupLoading, setFollowupLoading] = useState(false)
+  const [showFollowupModal, setShowFollowupModal] = useState(false)
+  const [followupQuestion, setFollowupQuestion] = useState('')
+  const [followupTranscription, setFollowupTranscription] = useState('')
+  const [isFollowupRecording, setIsFollowupRecording] = useState(false)
+
   // NEW: Language configuration state
   const currentSelectedLanguage = selectedLanguage || 'spanish'
 
@@ -323,6 +331,126 @@ function LanguageHelper({ selectedLanguage }) {
     }
   }
 
+  // NEW: Follow-up question functions
+  const openFollowupModal = () => {
+    setShowFollowupModal(true)
+    setFollowupQuestion('')
+    setFollowupTranscription('')
+    setFollowupHistory([])
+  }
+
+  const closeFollowupModal = () => {
+    setShowFollowupModal(false)
+    setFollowupQuestion('')
+    setFollowupTranscription('')
+    setFollowupHistory([])
+    setIsFollowupRecording(false)
+  }
+
+  const sendFollowupQuestion = async () => {
+    const questionText = followupTranscription || followupQuestion
+    if (!questionText.trim()) {
+      setError('Please enter a follow-up question.')
+      return
+    }
+
+    setFollowupLoading(true)
+    setError('')
+
+    try {
+      // Get the most recent user message from conversation history for context
+      const lastUserMessage = conversationHistory
+        .filter(msg => msg.role === 'user')
+        .pop()?.content || ''
+
+      const correctionContext = {
+        original: lastUserMessage,
+        correction: lastCorrection,
+        alternative: lastAlternative,
+        explanation: lastExplanation,
+      }
+
+      const response = await axios.post('/api/followup', {
+        userQuestion: questionText.trim(),
+        correctionContext: correctionContext,
+        followupHistory: followupHistory,
+        language: currentSelectedLanguage,
+      })
+
+      setFollowupHistory(response.data.followupHistory)
+      setFollowupQuestion('')
+      setFollowupTranscription('')
+    } catch (err) {
+      const errorMsg = err.response?.data?.error || err.message
+      setError(`Failed to send follow-up question: ${errorMsg}`)
+    } finally {
+      setFollowupLoading(false)
+    }
+  }
+
+  // NEW: Follow-up recording functions
+  const startFollowupRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      
+      mediaRecorderRef.current = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus',
+      })
+      audioChunksRef.current = []
+
+      mediaRecorderRef.current.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          audioChunksRef.current.push(e.data)
+        }
+      }
+
+      mediaRecorderRef.current.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+        stream.getTracks().forEach(track => track.stop())
+        
+        if (shouldTranscribeRef.current) {
+          await transcribeFollowupAudio(audioBlob)
+        }
+      }
+
+      mediaRecorderRef.current.start()
+      setIsFollowupRecording(true)
+      setError('')
+    } catch (err) {
+      setError('Failed to access microphone for follow-up recording.')
+    }
+  }
+
+  const stopFollowupRecording = () => {
+    if (mediaRecorderRef.current && isFollowupRecording) {
+      mediaRecorderRef.current.stop()
+      setIsFollowupRecording(false)
+    }
+  }
+
+  const cancelFollowupRecording = () => {
+    shouldTranscribeRef.current = false
+    stopFollowupRecording()
+  }
+
+  const transcribeFollowupAudio = async (audioBlob) => {
+    setFollowupLoading(true)
+    const formData = new FormData()
+    formData.append('audio', audioBlob, 'followup-recording.webm')
+    formData.append('language', 'auto-detect') // Use auto-detection for follow-up questions
+
+    try {
+      const response = await axios.post('/api/transcribe', formData)
+      setFollowupTranscription(response.data)
+      setError('')
+    } catch (err) {
+      const errorMsg = err.response?.data || err.message
+      setError(`Failed to transcribe follow-up audio: ${errorMsg}`)
+    } finally {
+      setFollowupLoading(false)
+    }
+  }
+
   // NEW: Audio visualizer component
   const AudioVisualizer = () => (
     <div
@@ -477,9 +605,21 @@ function LanguageHelper({ selectedLanguage }) {
                 {lastExplanation && (
                   <>
                     <h6 className="mt-3">Explanation:</h6>
-                    <p className="mb-0 small">{lastExplanation}</p>
+                    <p className="mb-2 small">{lastExplanation}</p>
                   </>
                 )}
+
+                {/* NEW: Follow-up question button */}
+                <div className="mt-3 pt-2 border-top">
+                  <button
+                    className="btn btn-outline-primary btn-sm"
+                    onClick={openFollowupModal}
+                    disabled={followupLoading}
+                  >
+                    <i className="bi bi-question-circle me-1"></i>
+                    Ask Follow-up Question
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -602,6 +742,113 @@ function LanguageHelper({ selectedLanguage }) {
           ? 'Transcribing...'
           : 'Ready'}
       </p>
+
+      {/* NEW: Follow-up Question Modal */}
+      {showFollowupModal && (
+        <div className="modal d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-lg">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h6 className="modal-title">Ask a Follow-up Question</h6>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={closeFollowupModal}
+                  disabled={followupLoading}
+                ></button>
+              </div>
+              <div className="modal-body">
+                <p className="small text-muted mb-3">
+                  Ask questions about the correction, alternative, or explanation you received. 
+                  You can type or record your question in any language.
+                </p>
+
+                {/* Follow-up conversation history */}
+                {followupHistory.length > 0 && (
+                  <div className="mb-3">
+                    <h6 className="small">Conversation:</h6>
+                    <div 
+                      className="border rounded p-2" 
+                      style={{ maxHeight: '200px', overflowY: 'auto', backgroundColor: '#f8f9fa' }}
+                    >
+                      {followupHistory.map((msg, index) => (
+                        <div key={index} className="mb-2">
+                          <div className={`small ${msg.role === 'user' ? 'text-primary fw-bold' : 'text-dark'}`}>
+                            <strong>{msg.role === 'user' ? 'You' : 'Tutor'}:</strong> {msg.content}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Question input */}
+                <div className="mb-3">
+                  <label className="form-label small">Your Follow-up Question:</label>
+                  <textarea
+                    className="form-control"
+                    rows={3}
+                    value={followupTranscription || followupQuestion}
+                    onChange={(e) => setFollowupQuestion(e.target.value)}
+                    placeholder="Type your question here, or use the microphone to record..."
+                    disabled={followupLoading || isFollowupRecording}
+                  />
+                </div>
+
+                {/* Recording controls for follow-up */}
+                <div className="mb-3">
+                  <div className="d-flex gap-2 align-items-center">
+                    <button
+                      className={`btn btn-sm ${isFollowupRecording ? 'btn-danger' : 'btn-outline-primary'}`}
+                      onClick={() => {
+                        shouldTranscribeRef.current = true
+                        isFollowupRecording ? stopFollowupRecording() : startFollowupRecording()
+                      }}
+                      disabled={followupLoading}
+                    >
+                      {isFollowupRecording ? 'Stop Recording' : 'Record Question'}
+                    </button>
+                    
+                    {isFollowupRecording && (
+                      <button
+                        className="btn btn-sm btn-warning"
+                        onClick={cancelFollowupRecording}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                    
+                    {isFollowupRecording && (
+                      <small className="text-muted">Recording... (auto-detecting language)</small>
+                    )}
+                  </div>
+                </div>
+
+                {/* Error display */}
+                {error && <div className="alert alert-danger small">{error}</div>}
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={closeFollowupModal}
+                  disabled={followupLoading}
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={sendFollowupQuestion}
+                  disabled={followupLoading || (!followupQuestion.trim() && !followupTranscription.trim())}
+                >
+                  {followupLoading ? 'Sending...' : 'Send Question'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

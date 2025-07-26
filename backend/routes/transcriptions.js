@@ -72,7 +72,8 @@ router.post('/transcribe', upload.single('audio'), async (req, res) => {
       german: 'de',
       italian: 'it',
       portuguese: 'pt',
-      english: 'en'
+      english: 'en',
+      'auto-detect': null // Special case for auto-detection
     }
 
     const isoLanguageCode = languageToISO[language] || 'es' // Default to Spanish
@@ -96,11 +97,18 @@ router.post('/transcribe', upload.single('audio'), async (req, res) => {
     const startTime = Date.now()
     const audioFile_mp3 = createFileFromBuffer(finalBuffer, 'audio.mp3', 'audio/mpeg')
 
-    const transcription = await openai.audio.transcriptions.create({
+    // Create transcription request with or without language specification
+    const transcriptionRequest = {
       file: audioFile_mp3,
       model: 'gpt-4o-mini-transcribe',
-      language: isoLanguageCode,
-    })
+    }
+
+    // Only add language if it's not auto-detect (null means auto-detect for OpenAI)
+    if (isoLanguageCode !== null) {
+      transcriptionRequest.language = isoLanguageCode
+    }
+
+    const transcription = await openai.audio.transcriptions.create(transcriptionRequest)
 
     const endTime = Date.now()
     console.log('Transcription Response Time:', (endTime - startTime) / 1000, 'seconds')
@@ -388,6 +396,115 @@ Respond with a JSON object containing:
     console.error('Scenario error:', error)
     res.status(500).json({
       error: 'Failed to generate scenario',
+      details: error.message,
+    })
+  }
+})
+
+// NEW: Follow-up question route
+router.post('/followup', async (req, res) => {
+  try {
+    const { 
+      userQuestion, 
+      correctionContext = {},
+      followupHistory = [],
+      language = 'spanish' 
+    } = req.body
+
+    if (!userQuestion) {
+      return res.status(400).json({ error: 'userQuestion is required' })
+    }
+
+    console.log('Received follow-up request:', {
+      userQuestion,
+      correctionContext,
+      historyLength: followupHistory.length,
+      language,
+    })
+
+    // Language-specific configurations for context
+    const languageConfigs = {
+      spanish: { name: 'Spanish', nativeName: 'español' },
+      french: { name: 'French', nativeName: 'français' },
+      german: { name: 'German', nativeName: 'Deutsch' },
+      italian: { name: 'Italian', nativeName: 'italiano' },
+      portuguese: { name: 'Portuguese', nativeName: 'português' },
+      english: { name: 'English', nativeName: 'English' },
+    }
+
+    const selectedLanguage = languageConfigs[language] || languageConfigs.spanish
+    const languageName = selectedLanguage.name
+
+    // Build the context from the correction information
+    let contextText = `You are a helpful language tutor. A student is asking a follow-up question about a recent language correction/feedback.`
+    
+    if (correctionContext.correction || correctionContext.alternative || correctionContext.explanation) {
+      contextText += `\n\nContext of the recent correction for ${languageName} learning:`
+      
+      if (correctionContext.original) {
+        contextText += `\n- Original student message: "${correctionContext.original}"`
+      }
+      if (correctionContext.correction) {
+        contextText += `\n- Corrected version: "${correctionContext.correction}"`
+      }
+      if (correctionContext.alternative) {
+        contextText += `\n- Alternative expression: "${correctionContext.alternative}"`
+      }
+      if (correctionContext.explanation) {
+        contextText += `\n- Explanation provided: "${correctionContext.explanation}"`
+      }
+    }
+
+    contextText += `\n\nPlease answer the student's follow-up question clearly and helpfully. You can respond in any language that best serves the student's understanding, but default to English for explanations unless they specifically ask in another language.`
+
+    // Build the conversation messages
+    const messages = [
+      {
+        role: 'system',
+        content: contextText,
+      },
+    ]
+
+    // Add any previous follow-up history
+    followupHistory.forEach((msg) => {
+      messages.push({
+        role: msg.role || 'user',
+        content: msg.content,
+      })
+    })
+
+    // Add current user question
+    messages.push({
+      role: 'user',
+      content: userQuestion,
+    })
+
+    const startTime = Date.now()
+
+    // Use regular chat completion for more flexible responses
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-2024-08-06',
+      messages: messages,
+      temperature: 0.7, // Slightly more creative for explanations
+    })
+
+    const endTime = Date.now()
+    console.log('Follow-up Response Time:', (endTime - startTime) / 1000, 'seconds')
+
+    const responseContent = completion.choices[0].message.content
+
+    res.json({
+      response: responseContent,
+      followupHistory: [
+        ...followupHistory,
+        { role: 'user', content: userQuestion },
+        { role: 'assistant', content: responseContent },
+      ],
+    })
+  } catch (error) {
+    console.error('Follow-up error:', error)
+    res.status(500).json({
+      error: 'Failed to process follow-up question',
       details: error.message,
     })
   }
