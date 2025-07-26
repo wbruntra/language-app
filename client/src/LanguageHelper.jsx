@@ -1,50 +1,49 @@
-import { useState, useRef, useEffect } from 'react'
+import { useRef, useEffect, useState, useCallback } from 'react'
 import axios from 'axios'
+import { useLanguageHelper } from './hooks/useLanguageHelper'
+import { useDispatch } from 'react-redux'
+import { 
+  incrementRecordingTime, 
+  setRecordingTime, 
+  clearConversation 
+} from './store/languageHelperSlice'
 
 function LanguageHelper({ selectedLanguage }) {
-  const [transcription, setTranscription] = useState('')
-  const [editedTranscription, setEditedTranscription] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [isRecording, setIsRecording] = useState(false)
-  const [recordingTime, setRecordingTime] = useState(0)
-  const [audioLevel, setAudioLevel] = useState(0) // NEW: Audio level for visualization
+  // Use Redux store via our custom hook
+  const {
+    // State from store
+    transcription,
+    editedTranscription,
+    error,
+    loading,
+    isRecording,
+    recordingTime,
+    audioLevel,
+    conversationHistory,
+    lastCorrection,
+    lastAlternative,
+    lastExplanation,
+    conversationLoading,
+    correctionExpanded,
+    scenarioLoading,
+    currentScenario,
+    scenarioSuggestion,
+    followupHistory,
+    followupLoading,
+    showFollowupModal,
+    followupQuestion,
+    followupTranscription,
+    isFollowupRecording,
+    currentLanguage,
+    // Actions from store
+    actions
+  } = useLanguageHelper()
 
-  // NEW: Conversation state
-  const [conversationHistory, setConversationHistory] = useState([])
-  const [lastCorrection, setLastCorrection] = useState('')
-  const [lastAlternative, setLastAlternative] = useState('')
-  const [lastExplanation, setLastExplanation] = useState('')
-  const [conversationLoading, setConversationLoading] = useState(false)
-  const [correctionExpanded, setCorrectionExpanded] = useState(true)
+  // Use dispatch directly for useEffect hooks to avoid dependency issues
+  const dispatch = useDispatch()
 
-  // NEW: Scenario state
-  const [scenarioLoading, setScenarioLoading] = useState(false)
-  const [currentScenario, setCurrentScenario] = useState(null)
-  const [scenarioSuggestion, setScenarioSuggestion] = useState('')
-
-  // NEW: Follow-up question state
-  const [followupHistory, setFollowupHistory] = useState([])
-  const [followupLoading, setFollowupLoading] = useState(false)
-  const [showFollowupModal, setShowFollowupModal] = useState(false)
-  const [followupQuestion, setFollowupQuestion] = useState('')
-  const [followupTranscription, setFollowupTranscription] = useState('')
-  const [isFollowupRecording, setIsFollowupRecording] = useState(false)
-
-  // NEW: Language configuration state
+  // Get the current selected language (either from prop or store)
   const currentSelectedLanguage = selectedLanguage || 'spanish'
-
-  // Language configuration
-  const languages = {
-    spanish: { name: 'Spanish', nativeName: 'Español', flag: '🇪🇸' },
-    french: { name: 'French', nativeName: 'Français', flag: '🇫🇷' },
-    german: { name: 'German', nativeName: 'Deutsch', flag: '🇩🇪' },
-    italian: { name: 'Italian', nativeName: 'Italiano', flag: '🇮🇹' },
-    portuguese: { name: 'Portuguese', nativeName: 'Português', flag: '🇵🇹' },
-    english: { name: 'English', nativeName: 'English', flag: '🇺🇸' },
-  }
-
-  const currentLanguage = languages[currentSelectedLanguage] || languages.spanish
 
   const shouldTranscribeRef = useRef(true)
   const mediaRecorderRef = useRef(null)
@@ -87,20 +86,20 @@ function LanguageHelper({ selectedLanguage }) {
   useEffect(() => {
     if (isRecording) {
       timerRef.current = setInterval(() => {
-        setRecordingTime((prevTime) => prevTime + 1)
+        dispatch(incrementRecordingTime())
       }, 1000)
     } else {
       clearInterval(timerRef.current)
-      setRecordingTime(0)
+      dispatch(setRecordingTime(0))
     }
 
     return () => clearInterval(timerRef.current)
-  }, [isRecording])
+  }, [isRecording, dispatch])
 
   // Clear conversation when language changes
   useEffect(() => {
-    clearConversation()
-  }, [selectedLanguage])
+    dispatch(clearConversation())
+  }, [selectedLanguage, dispatch])
 
   // NEW: Audio visualization function
   const startAudioVisualization = (stream) => {
@@ -120,7 +119,7 @@ function LanguageHelper({ selectedLanguage }) {
 
         analyserRef.current.getByteFrequencyData(dataArray)
         const average = dataArray.reduce((a, b) => a + b) / dataArray.length
-        setAudioLevel(average / 255) // Normalize to 0-1
+        actions.setAudioLevel(average / 255) // Normalize to 0-1
 
         animationRef.current = requestAnimationFrame(updateAudioLevel)
       }
@@ -142,7 +141,7 @@ function LanguageHelper({ selectedLanguage }) {
       audioContextRef.current = null
     }
     analyserRef.current = null
-    setAudioLevel(0)
+    actions.setAudioLevel(0)
   }
 
   // MODIFIED: Start recording with visualization
@@ -177,11 +176,11 @@ function LanguageHelper({ selectedLanguage }) {
       }
 
       mediaRecorderRef.current.start()
-      setIsRecording(true)
-      setError('')
-      setTranscription('')
+      actions.setIsRecording(true)
+      actions.setError('')
+      actions.setTranscription('')
     } catch (err) {
-      setError('Failed to access microphone. Please allow microphone access.')
+      actions.setError('Failed to access microphone. Please allow microphone access.')
       stopAudioVisualization() // Clean up on error
     }
   }
@@ -190,7 +189,7 @@ function LanguageHelper({ selectedLanguage }) {
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop()
-      setIsRecording(false)
+      actions.setIsRecording(false)
     }
   }
 
@@ -204,7 +203,7 @@ function LanguageHelper({ selectedLanguage }) {
   // Transcribe the recorded audio
   const transcribeAudio = async (audioBlob) => {
     abortControllerRef.current = new AbortController()
-    setLoading(true)
+    actions.setLoading(true)
     const formData = new FormData()
     formData.append('audio', audioBlob, 'recording.webm')
     formData.append('language', currentSelectedLanguage)
@@ -213,20 +212,18 @@ function LanguageHelper({ selectedLanguage }) {
       const response = await axios.post('/api/transcribe', formData, {
         signal: abortControllerRef.current.signal,
       })
-      setTranscription(response.data)
-      setEditedTranscription((prevEdited) =>
-        prevEdited ? prevEdited + ' ' + response.data : response.data,
-      )
-      setError('')
+      actions.setTranscription(response.data)
+      actions.appendToEditedTranscription(response.data)
+      actions.setError('')
     } catch (err) {
       if (axios.isCancel(err)) {
-        setError('Transcription canceled by user.')
+        actions.setError('Transcription canceled by user.')
       } else {
         const errorMsg = err.response?.data || err.message
-        setError(`Failed to transcribe audio: ${errorMsg}`)
+        actions.setError(`Failed to transcribe audio: ${errorMsg}`)
       }
     } finally {
-      setLoading(false)
+      actions.setLoading(false)
       abortControllerRef.current = null
     }
   }
@@ -234,31 +231,31 @@ function LanguageHelper({ selectedLanguage }) {
   const cancelTranscription = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
-      setLoading(false)
-      setError('Transcription canceled.')
+      actions.setLoading(false)
+      actions.setError('Transcription canceled.')
     }
   }
 
   const handleTranscriptionEdit = (e) => {
-    setEditedTranscription(e.target.value)
+    actions.setEditedTranscription(e.target.value)
   }
 
   // NEW: Handle language change
   const handleLanguageChange = (language) => {
     // This function is now handled in AppContent
     // Clear current conversation when language changes
-    clearConversation()
+    actions.clearConversation()
   }
 
   // NEW: Send message for conversation
   const sendMessage = async () => {
     if (!editedTranscription.trim()) {
-      setError('Please enter a message to send.')
+      actions.setError('Please enter a message to send.')
       return
     }
 
-    setConversationLoading(true)
-    setError('')
+    actions.setConversationLoading(true)
+    actions.setError('')
 
     try {
       const response = await axios.post('/api/conversation', {
@@ -267,44 +264,25 @@ function LanguageHelper({ selectedLanguage }) {
         language: currentSelectedLanguage,
       })
 
-      // Update conversation history
-      setConversationHistory(response.data.conversationHistory)
-
-      // Show correction, alternative, and explanation
-      setLastCorrection(response.data.correction)
-      setLastAlternative(response.data.alternative)
-      setLastExplanation(response.data.explanation)
-
-      // Expand correction panel when new correction arrives
-      setCorrectionExpanded(true)
-
-      // Clear the input for next message
-      setEditedTranscription('')
-      setTranscription('')
+      // Update conversation result using the combined action
+      actions.updateConversationResult({
+        conversationHistory: response.data.conversationHistory,
+        correction: response.data.correction,
+        alternative: response.data.alternative,
+        explanation: response.data.explanation,
+      })
     } catch (err) {
       const errorMsg = err.response?.data?.error || err.message
-      setError(`Failed to send message: ${errorMsg}`)
+      actions.setError(`Failed to send message: ${errorMsg}`)
     } finally {
-      setConversationLoading(false)
+      actions.setConversationLoading(false)
     }
-  }
-
-  // NEW: Clear conversation
-  const clearConversation = () => {
-    setConversationHistory([])
-    setLastCorrection('')
-    setLastAlternative('')
-    setLastExplanation('')
-    setEditedTranscription('')
-    setTranscription('')
-    setCurrentScenario(null)
-    setCorrectionExpanded(true)
   }
 
   // NEW: Generate conversation scenario
   const generateScenario = async () => {
-    setScenarioLoading(true)
-    setError('')
+    actions.setScenarioLoading(true)
+    actions.setError('')
 
     try {
       const response = await axios.post('/api/scenario', {
@@ -312,50 +290,41 @@ function LanguageHelper({ selectedLanguage }) {
         language: currentSelectedLanguage,
       })
 
-      // Set the scenario and start conversation with initial message
-      setCurrentScenario({
+      // Update scenario result using the combined action
+      actions.updateScenarioResult({
         title: response.data.title,
         context: response.data.context,
         tips: response.data.tips,
+        conversationHistory: response.data.conversationHistory,
       })
-
-      setConversationHistory(response.data.conversationHistory)
-
-      // Clear the suggestion input
-      setScenarioSuggestion('')
     } catch (err) {
       const errorMsg = err.response?.data?.error || err.message
-      setError(`Failed to generate scenario: ${errorMsg}`)
+      actions.setError(`Failed to generate scenario: ${errorMsg}`)
     } finally {
-      setScenarioLoading(false)
+      actions.setScenarioLoading(false)
     }
   }
 
   // NEW: Follow-up question functions
   const openFollowupModal = () => {
-    setShowFollowupModal(true)
-    setFollowupQuestion('')
-    setFollowupTranscription('')
-    setFollowupHistory([])
+    actions.setShowFollowupModal(true)
+    actions.clearFollowup()
   }
 
   const closeFollowupModal = () => {
-    setShowFollowupModal(false)
-    setFollowupQuestion('')
-    setFollowupTranscription('')
-    setFollowupHistory([])
-    setIsFollowupRecording(false)
+    actions.setShowFollowupModal(false)
+    actions.clearFollowup()
   }
 
   const sendFollowupQuestion = async () => {
     const questionText = followupTranscription || followupQuestion
     if (!questionText.trim()) {
-      setError('Please enter a follow-up question.')
+      actions.setError('Please enter a follow-up question.')
       return
     }
 
-    setFollowupLoading(true)
-    setError('')
+    actions.setFollowupLoading(true)
+    actions.setError('')
 
     try {
       // Get the most recent user message from conversation history for context
@@ -377,14 +346,14 @@ function LanguageHelper({ selectedLanguage }) {
         language: currentSelectedLanguage,
       })
 
-      setFollowupHistory(response.data.followupHistory)
-      setFollowupQuestion('')
-      setFollowupTranscription('')
+      actions.setFollowupHistory(response.data.followupHistory)
+      actions.setFollowupQuestion('')
+      actions.setFollowupTranscription('')
     } catch (err) {
       const errorMsg = err.response?.data?.error || err.message
-      setError(`Failed to send follow-up question: ${errorMsg}`)
+      actions.setError(`Failed to send follow-up question: ${errorMsg}`)
     } finally {
-      setFollowupLoading(false)
+      actions.setFollowupLoading(false)
     }
   }
 
@@ -414,17 +383,17 @@ function LanguageHelper({ selectedLanguage }) {
       }
 
       mediaRecorderRef.current.start()
-      setIsFollowupRecording(true)
-      setError('')
+      actions.setIsFollowupRecording(true)
+      actions.setError('')
     } catch (err) {
-      setError('Failed to access microphone for follow-up recording.')
+      actions.setError('Failed to access microphone for follow-up recording.')
     }
   }
 
   const stopFollowupRecording = () => {
     if (mediaRecorderRef.current && isFollowupRecording) {
       mediaRecorderRef.current.stop()
-      setIsFollowupRecording(false)
+      actions.setIsFollowupRecording(false)
     }
   }
 
@@ -434,20 +403,20 @@ function LanguageHelper({ selectedLanguage }) {
   }
 
   const transcribeFollowupAudio = async (audioBlob) => {
-    setFollowupLoading(true)
+    actions.setFollowupLoading(true)
     const formData = new FormData()
     formData.append('audio', audioBlob, 'followup-recording.webm')
     formData.append('language', 'auto-detect') // Use auto-detection for follow-up questions
 
     try {
       const response = await axios.post('/api/transcribe', formData)
-      setFollowupTranscription(response.data)
-      setError('')
+      actions.setFollowupTranscription(response.data)
+      actions.setError('')
     } catch (err) {
       const errorMsg = err.response?.data || err.message
-      setError(`Failed to transcribe follow-up audio: ${errorMsg}`)
+      actions.setError(`Failed to transcribe follow-up audio: ${errorMsg}`)
     } finally {
-      setFollowupLoading(false)
+      actions.setFollowupLoading(false)
     }
   }
 
@@ -526,7 +495,7 @@ function LanguageHelper({ selectedLanguage }) {
                   id="scenarioSuggestion"
                   className="form-control"
                   value={scenarioSuggestion}
-                  onChange={(e) => setScenarioSuggestion(e.target.value)}
+                  onChange={(e) => actions.setScenarioSuggestion(e.target.value)}
                   placeholder="e.g., ordering food, asking directions..."
                   disabled={scenarioLoading}
                 />
@@ -568,7 +537,7 @@ function LanguageHelper({ selectedLanguage }) {
             <div
               className="d-flex justify-content-between align-items-center"
               style={{ cursor: 'pointer' }}
-              onClick={() => setCorrectionExpanded(!correctionExpanded)}
+              onClick={() => actions.setCorrectionExpanded(!correctionExpanded)}
             >
               <h6 className="mb-0">
                 {correctionExpanded
@@ -789,7 +758,7 @@ function LanguageHelper({ selectedLanguage }) {
                     className="form-control"
                     rows={3}
                     value={followupTranscription || followupQuestion}
-                    onChange={(e) => setFollowupQuestion(e.target.value)}
+                    onChange={(e) => actions.setFollowupQuestion(e.target.value)}
                     placeholder="Type your question here, or use the microphone to record..."
                     disabled={followupLoading || isFollowupRecording}
                   />
@@ -856,17 +825,17 @@ function LanguageHelper({ selectedLanguage }) {
 // Language Selector Component for the navbar
 export function LanguageSelector({ selectedLanguage, onLanguageChange }) {
   const [showDropdown, setShowDropdown] = useState(false)
+  const { languages } = useLanguageHelper()
 
-  const languages = {
-    spanish: { name: 'Spanish', nativeName: 'Español', flag: '🇪🇸' },
-    french: { name: 'French', nativeName: 'Français', flag: '🇫🇷' },
-    german: { name: 'German', nativeName: 'Deutsch', flag: '🇩🇪' },
-    // italian: { name: 'Italian', nativeName: 'Italiano', flag: '🇮🇹' },
-    // portuguese: { name: 'Portuguese', nativeName: 'Português', flag: '🇵🇹' },
-    english: { name: 'English', nativeName: 'English', flag: '🇺🇸' },
+  // Filter languages for the selector (matching what's currently shown)
+  const availableLanguages = {
+    spanish: languages.spanish,
+    french: languages.french,
+    german: languages.german,
+    english: languages.english,
   }
 
-  const currentLanguage = languages[selectedLanguage] || languages.spanish
+  const currentLanguage = availableLanguages[selectedLanguage] || availableLanguages.spanish
 
   return (
     <div className="dropdown">
@@ -886,7 +855,7 @@ export function LanguageSelector({ selectedLanguage, onLanguageChange }) {
       {showDropdown && (
         <div className="dropdown-menu dropdown-menu-end show" style={{ minWidth: '200px' }}>
           <h6 className="dropdown-header">Choose Language</h6>
-          {Object.entries(languages).map(([key, lang]) => (
+          {Object.entries(availableLanguages).map(([key, lang]) => (
             <button
               key={key}
               className={`dropdown-item ${selectedLanguage === key ? 'active' : ''}`}

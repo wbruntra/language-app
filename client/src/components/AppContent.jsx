@@ -1,32 +1,25 @@
 import { useUser } from '../contexts/UserContext'
 import Login from '../components/Login'
 import LanguageHelper, { LanguageSelector } from '../LanguageHelper'
-import { useState } from 'react'
+import { useEffect } from 'react'
+import { useLanguageConfig } from '../hooks/useLanguageHelper'
 
 function AppContent() {
   const { isAuthenticated, loading, logout } = useUser()
-  
-  // Language state
-  const [selectedLanguage, setSelectedLanguage] = useState(() => {
-    return localStorage.getItem('languageHelperLanguage') || 'spanish'
-  })
+  const { selectedLanguage, currentLanguage, setSelectedLanguage } = useLanguageConfig()
+
+  // Initialize language from localStorage on app start
+  useEffect(() => {
+    const savedLanguage = localStorage.getItem('languageHelperLanguage')
+    if (savedLanguage && savedLanguage !== selectedLanguage) {
+      setSelectedLanguage(savedLanguage)
+    }
+  }, [])
 
   const handleLanguageChange = (language) => {
     setSelectedLanguage(language)
     localStorage.setItem('languageHelperLanguage', language)
   }
-
-  // Language display names
-  const languages = {
-    spanish: { name: 'Spanish', nativeName: 'Español' },
-    french: { name: 'French', nativeName: 'Français' },
-    german: { name: 'German', nativeName: 'Deutsch' },
-    italian: { name: 'Italian', nativeName: 'Italiano' },
-    portuguese: { name: 'Portuguese', nativeName: 'Português' },
-    english: { name: 'English', nativeName: 'English' }
-  }
-
-  const currentLanguage = languages[selectedLanguage] || languages.spanish
 
   if (loading) {
     return (
