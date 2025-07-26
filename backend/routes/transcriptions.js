@@ -45,7 +45,6 @@ function createFileFromBuffer(buffer, filename = 'audio.mp3', mimeType = 'audio/
   return new File([buffer], filename, { type: mimeType })
 }
 
-
 router.get('/', (req, res) => {
   res.send('Language Helper API is running')
 })
@@ -53,6 +52,8 @@ router.get('/', (req, res) => {
 router.post('/transcribe', upload.single('audio'), async (req, res) => {
   try {
     const audioFile = req.file
+    const { language = 'spanish' } = req.body
+
     if (!audioFile) {
       return res.status(400).json({ error: 'No audio file uploaded' })
     }
@@ -60,15 +61,29 @@ router.post('/transcribe', upload.single('audio'), async (req, res) => {
     console.log('Received file:', {
       size: audioFile.size,
       mimetype: audioFile.mimetype,
-      originalname: audioFile.originalname
+      originalname: audioFile.originalname,
+      language
     })
+
+    // Map our language keys to ISO-639-1 codes
+    const languageToISO = {
+      spanish: 'es',
+      french: 'fr',
+      german: 'de',
+      italian: 'it',
+      portuguese: 'pt',
+      english: 'en'
+    }
+
+    const isoLanguageCode = languageToISO[language] || 'es' // Default to Spanish
 
     let finalBuffer = audioFile.buffer
 
     // Only convert if it's NOT already MP3
-    const isMp3 = audioFile.mimetype === 'audio/mpeg' || 
-                  audioFile.mimetype === 'audio/mp3' || 
-                  audioFile.originalname?.toLowerCase().endsWith('.mp3')
+    const isMp3 =
+      audioFile.mimetype === 'audio/mpeg' ||
+      audioFile.mimetype === 'audio/mp3' ||
+      audioFile.originalname?.toLowerCase().endsWith('.mp3')
 
     if (!isMp3) {
       console.log('Converting to MP3...')
@@ -84,6 +99,7 @@ router.post('/transcribe', upload.single('audio'), async (req, res) => {
     const transcription = await openai.audio.transcriptions.create({
       file: audioFile_mp3,
       model: 'gpt-4o-mini-transcribe',
+      language: isoLanguageCode,
     })
 
     const endTime = Date.now()
@@ -98,7 +114,7 @@ router.post('/transcribe', upload.single('audio'), async (req, res) => {
 
 router.post('/conversation', async (req, res) => {
   try {
-    const { userMessage, conversationHistory = [] } = req.body
+    const { userMessage, conversationHistory = [], language = 'spanish' } = req.body
 
     if (!userMessage) {
       return res.status(400).json({ error: 'userMessage is required' })
@@ -106,39 +122,72 @@ router.post('/conversation', async (req, res) => {
 
     console.log('Received conversation request:', {
       userMessage,
-      historyLength: conversationHistory.length
+      historyLength: conversationHistory.length,
+      language,
     })
+
+    // Language-specific configurations
+    const languageConfigs = {
+      spanish: {
+        name: 'Spanish',
+        nativeName: 'español',
+      },
+      french: {
+        name: 'French',
+        nativeName: 'français',
+      },
+      german: {
+        name: 'German',
+        nativeName: 'Deutsch',
+      },
+      italian: {
+        name: 'Italian',
+        nativeName: 'italiano',
+      },
+      portuguese: {
+        name: 'Portuguese',
+        nativeName: 'português',
+      },
+      english: {
+        name: 'English',
+        nativeName: 'English',
+      },
+    }
+
+    const selectedLanguage = languageConfigs[language] || languageConfigs.spanish
+    const languageName = selectedLanguage.name
+    const nativeName = selectedLanguage.nativeName
 
     // Build the conversation context
     const messages = [
       {
         role: 'system',
-        content: `You are a helpful Spanish language tutor. Your job is to:
-1. Correct and rephrase the user's Spanish in a grammatically correct and natural way
+        content: `You are a helpful ${languageName} language tutor. Your job is to:
+1. Correct and rephrase the user's ${languageName} in a grammatically correct and natural way
 2. Provide an alternative way to express the same idea - this should be creative and show different vocabulary, expressions, or structures
-3. Provide a conversational response in Spanish to continue the dialogue
+3. Provide a conversational response in ${languageName} to continue the dialogue
 4. Keep responses appropriate for language learning - not too complex but engaging
 
 Respond with a JSON object containing:
-- "correction": The user's message corrected and rephrased in proper Spanish (or "Perfecto" if no correction needed)
-- "alternative": A creative alternative way to express the same idea using different vocabulary, expressions, or sentence structures
-- "response": Your conversational response in Spanish to continue the dialogue
-- "explanation": Brief explanation in English of any major corrections made (or empty string if no corrections)`
-      }
+- "correction": The user's message corrected and rephrased in proper ${languageName} (or "Perfect" if no correction needed)
+- "alternative": A creative alternative way to express the same idea using different vocabulary, expressions, or sentence structures in ${languageName}
+- "response": Your conversational response in ${languageName} to continue the dialogue
+- "explanation": Brief explanation in English of any major corrections made (or empty string if no corrections)`,
+      },
     ]
 
     // Add conversation history
-    conversationHistory.forEach(msg => {
+    conversationHistory.forEach((msg) => {
       messages.push({
         role: msg.role || 'user',
-        content: msg.content
+        content: msg.content,
       })
     })
 
     // Add current user message
     messages.push({
       role: 'user',
-      content: `Please correct and respond to: "${userMessage}"`
+      content: `Please correct and respond to: "${userMessage}"`,
     })
 
     const startTime = Date.now()
@@ -159,17 +208,15 @@ Respond with a JSON object containing:
             properties: {
               correction: {
                 type: 'string',
-                description:
-                  "The corrected and properly phrased Spanish version of the user's message",
+                description: `The corrected and properly phrased ${languageName} version of the user's message`,
               },
               alternative: {
                 type: 'string',
-                description:
-                  "A creative alternative way to express the same idea using different vocabulary, expressions, or sentence structures",
+                description: `A creative alternative way to express the same idea using different vocabulary, expressions, or sentence structures in ${languageName}`,
               },
               response: {
                 type: 'string',
-                description: 'A conversational response in Spanish to continue the dialogue',
+                description: `A conversational response in ${languageName} to continue the dialogue`,
               },
               explanation: {
                 type: 'string',
@@ -197,15 +244,14 @@ Respond with a JSON object containing:
       conversationHistory: [
         ...conversationHistory,
         { role: 'user', content: userMessage },
-        { role: 'assistant', content: responseContent.response }
-      ]
+        { role: 'assistant', content: responseContent.response },
+      ],
     })
-
   } catch (error) {
     console.error('Conversation error:', error)
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to process conversation',
-      details: error.message 
+      details: error.message,
     })
   }
 })
@@ -213,36 +259,79 @@ Respond with a JSON object containing:
 // NEW: Generate conversation scenario
 router.post('/scenario', async (req, res) => {
   try {
-    const { suggestion = '' } = req.body
+    const { suggestion = '', language = 'spanish' } = req.body
 
-    console.log('Received scenario request:', { suggestion })
+    console.log('Received scenario request:', { suggestion, language })
 
-    const systemPrompt = `You are a helpful Spanish language tutor. Generate a realistic conversation scenario for Spanish language practice.
+    // Language-specific configurations
+    const languageConfigs = {
+      spanish: {
+        name: 'Spanish',
+        nativeName: 'español',
+        level: 'intermediate Spanish',
+      },
+      french: {
+        name: 'French',
+        nativeName: 'français',
+        level: 'intermediate French',
+      },
+      german: {
+        name: 'German',
+        nativeName: 'Deutsch',
+        level: 'intermediate German',
+      },
+      italian: {
+        name: 'Italian',
+        nativeName: 'italiano',
+        level: 'intermediate Italian',
+      },
+      portuguese: {
+        name: 'Portuguese',
+        nativeName: 'português',
+        level: 'intermediate Portuguese',
+      },
+      english: {
+        name: 'English',
+        nativeName: 'English',
+        level: 'intermediate English',
+      },
+    }
+
+    const selectedLanguage = languageConfigs[language] || languageConfigs.spanish
+    const languageName = selectedLanguage.name
+    const nativeName = selectedLanguage.nativeName
+    const levelDescription = selectedLanguage.level
+
+    const systemPrompt = `You are a helpful ${languageName} language tutor. Generate a realistic conversation scenario for ${languageName} language practice.
 
 Create a scenario that:
 1. Provides a clear context/situation
 2. Gives the student a specific role to play
-3. Includes a starting message from a Spanish speaker
-4. Is appropriate for intermediate Spanish learners
+3. Includes a starting message from a ${languageName} speaker
+4. Is appropriate for ${levelDescription} learners
 5. Encourages natural conversation
 
-${suggestion ? `User suggestion: "${suggestion}". Try to incorporate this into the scenario if appropriate.` : ''}
+${
+  suggestion
+    ? `User suggestion: "${suggestion}". Try to incorporate this into the scenario if appropriate.`
+    : ''
+}
 
 Respond with a JSON object containing:
 - "title": A brief title for the scenario (in English)
 - "context": Description of the situation and the student's role (in English)
-- "initialMessage": The first message from the Spanish speaker to start the conversation (in Spanish)
+- "initialMessage": The first message from the ${languageName} speaker to start the conversation (in ${languageName})
 - "tips": Brief tips for the student on useful phrases or vocabulary for this scenario (in English)`
 
     const messages = [
       {
         role: 'system',
-        content: systemPrompt
+        content: systemPrompt,
       },
       {
         role: 'user',
-        content: 'Please generate a conversation scenario for Spanish practice.'
-      }
+        content: `Please generate a conversation scenario for ${languageName} practice.`,
+      },
     ]
 
     const startTime = Date.now()
@@ -261,26 +350,26 @@ Respond with a JSON object containing:
             properties: {
               title: {
                 type: 'string',
-                description: 'Brief title for the scenario'
+                description: 'Brief title for the scenario',
               },
               context: {
                 type: 'string',
-                description: 'Description of the situation and student role'
+                description: 'Description of the situation and student role',
               },
               initialMessage: {
                 type: 'string',
-                description: 'First message from Spanish speaker to start conversation'
+                description: `First message from ${languageName} speaker to start conversation`,
               },
               tips: {
                 type: 'string',
-                description: 'Useful phrases or vocabulary tips for this scenario'
-              }
+                description: 'Useful phrases or vocabulary tips for this scenario',
+              },
             },
             required: ['title', 'context', 'initialMessage', 'tips'],
-            additionalProperties: false
-          }
-        }
-      }
+            additionalProperties: false,
+          },
+        },
+      },
     })
 
     const endTime = Date.now()
@@ -293,16 +382,13 @@ Respond with a JSON object containing:
       context: responseContent.context,
       initialMessage: responseContent.initialMessage,
       tips: responseContent.tips,
-      conversationHistory: [
-        { role: 'assistant', content: responseContent.initialMessage }
-      ]
+      conversationHistory: [{ role: 'assistant', content: responseContent.initialMessage }],
     })
-
   } catch (error) {
     console.error('Scenario error:', error)
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to generate scenario',
-      details: error.message 
+      details: error.message,
     })
   }
 })

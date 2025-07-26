@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import axios from 'axios'
 
-function LanguageHelper() {
+function LanguageHelper({ selectedLanguage }) {
   const [transcription, setTranscription] = useState('')
   const [editedTranscription, setEditedTranscription] = useState('')
   const [error, setError] = useState('')
@@ -22,6 +22,21 @@ function LanguageHelper() {
   const [scenarioLoading, setScenarioLoading] = useState(false)
   const [currentScenario, setCurrentScenario] = useState(null)
   const [scenarioSuggestion, setScenarioSuggestion] = useState('')
+
+  // NEW: Language configuration state
+  const currentSelectedLanguage = selectedLanguage || 'spanish'
+
+  // Language configuration
+  const languages = {
+    spanish: { name: 'Spanish', nativeName: 'Español', flag: '🇪🇸' },
+    french: { name: 'French', nativeName: 'Français', flag: '🇫🇷' },
+    german: { name: 'German', nativeName: 'Deutsch', flag: '🇩🇪' },
+    italian: { name: 'Italian', nativeName: 'Italiano', flag: '🇮🇹' },
+    portuguese: { name: 'Portuguese', nativeName: 'Português', flag: '🇵🇹' },
+    english: { name: 'English', nativeName: 'English', flag: '🇺🇸' }
+  }
+
+  const currentLanguage = languages[currentSelectedLanguage] || languages.spanish
 
   const shouldTranscribeRef = useRef(true)
   const mediaRecorderRef = useRef(null)
@@ -73,6 +88,11 @@ function LanguageHelper() {
 
     return () => clearInterval(timerRef.current)
   }, [isRecording])
+
+  // Clear conversation when language changes
+  useEffect(() => {
+    clearConversation()
+  }, [selectedLanguage])
 
   // NEW: Audio visualization function
   const startAudioVisualization = (stream) => {
@@ -179,6 +199,7 @@ function LanguageHelper() {
     setLoading(true)
     const formData = new FormData()
     formData.append('audio', audioBlob, 'recording.webm')
+    formData.append('language', currentSelectedLanguage)
 
     try {
       const response = await axios.post('/api/transcribe', formData, {
@@ -214,6 +235,13 @@ function LanguageHelper() {
     setEditedTranscription(e.target.value)
   }
 
+  // NEW: Handle language change
+  const handleLanguageChange = (language) => {
+    // This function is now handled in AppContent
+    // Clear current conversation when language changes
+    clearConversation()
+  }
+
   // NEW: Send message for conversation
   const sendMessage = async () => {
     if (!editedTranscription.trim()) {
@@ -228,6 +256,7 @@ function LanguageHelper() {
       const response = await axios.post('/api/conversation', {
         userMessage: editedTranscription.trim(),
         conversationHistory: conversationHistory,
+        language: currentSelectedLanguage,
       })
 
       // Update conversation history
@@ -272,6 +301,7 @@ function LanguageHelper() {
     try {
       const response = await axios.post('/api/scenario', {
         suggestion: scenarioSuggestion.trim() || undefined,
+        language: currentSelectedLanguage,
       })
 
       // Set the scenario and start conversation with initial message
@@ -331,7 +361,7 @@ function LanguageHelper() {
           <>
             <h6 className="mb-2">How to Use</h6>
             <ul className="mb-3 small">
-              <li>Record yourself speaking Spanish using the microphone</li>
+              <li>Record yourself speaking {currentLanguage.name} using the microphone</li>
               <li>Edit the transcription if needed</li>
               <li>Send your message to get corrections and continue the conversation</li>
             </ul>
@@ -355,7 +385,7 @@ function LanguageHelper() {
             <div className="card-body p-3">
               <h6 className="card-title">Start a Conversation</h6>
               <p className="card-text small">
-                Get a conversation scenario to practice your Spanish, or start your own
+                Get a conversation scenario to practice your {currentLanguage.name}, or start your own
                 conversation.
               </p>
 
@@ -486,7 +516,7 @@ function LanguageHelper() {
           onChange={handleTranscriptionEdit}
           rows={4}
           className="form-control"
-          placeholder="Speak to transcribe, or type your Spanish message here..."
+          placeholder={`Speak to transcribe, or type your ${currentLanguage.name} message here...`}
         />
         <div className="mt-2 d-grid">
           <button
@@ -564,6 +594,56 @@ function LanguageHelper() {
           ? 'Transcribing...'
           : 'Ready'}
       </p>
+    </div>
+  )
+}
+
+// Language Selector Component for the navbar
+export function LanguageSelector({ selectedLanguage, onLanguageChange }) {
+  const [showDropdown, setShowDropdown] = useState(false)
+  
+  const languages = {
+    spanish: { name: 'Spanish', nativeName: 'Español', flag: '🇪🇸' },
+    french: { name: 'French', nativeName: 'Français', flag: '🇫🇷' },
+    german: { name: 'German', nativeName: 'Deutsch', flag: '🇩🇪' },
+    // italian: { name: 'Italian', nativeName: 'Italiano', flag: '🇮🇹' },
+    // portuguese: { name: 'Portuguese', nativeName: 'Português', flag: '🇵🇹' },
+    english: { name: 'English', nativeName: 'English', flag: '🇺🇸' }
+  }
+
+  const currentLanguage = languages[selectedLanguage] || languages.spanish
+
+  return (
+    <div className="dropdown">
+      <button
+        className="btn btn-outline-secondary btn-sm dropdown-toggle"
+        type="button"
+        onClick={() => setShowDropdown(!showDropdown)}
+        aria-expanded={showDropdown}
+      >
+        {/* <i className="bi bi-gear me-1"></i> */}
+        <span className="d-none d-sm-inline">{currentLanguage.flag} {currentLanguage.name}</span>
+        <span className="d-inline d-sm-none">{currentLanguage.flag}</span>
+      </button>
+      
+      {showDropdown && (
+        <div className="dropdown-menu dropdown-menu-end show" style={{ minWidth: '200px' }}>
+          <h6 className="dropdown-header">Choose Language</h6>
+          {Object.entries(languages).map(([key, lang]) => (
+            <button
+              key={key}
+              className={`dropdown-item ${selectedLanguage === key ? 'active' : ''}`}
+              onClick={() => {
+                onLanguageChange(key)
+                setShowDropdown(false)
+              }}
+            >
+              {lang.flag} {lang.name}
+              <small className="text-muted d-block">{lang.nativeName}</small>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
