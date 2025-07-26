@@ -115,11 +115,13 @@ router.post('/conversation', async (req, res) => {
         role: 'system',
         content: `You are a helpful Spanish language tutor. Your job is to:
 1. Correct and rephrase the user's Spanish in a grammatically correct and natural way
-2. Provide a conversational response in Spanish to continue the dialogue
-3. Keep responses appropriate for language learning - not too complex but engaging
+2. Provide an alternative way to express the same idea - this should be creative and show different vocabulary, expressions, or structures
+3. Provide a conversational response in Spanish to continue the dialogue
+4. Keep responses appropriate for language learning - not too complex but engaging
 
 Respond with a JSON object containing:
 - "correction": The user's message corrected and rephrased in proper Spanish (or "Perfecto" if no correction needed)
+- "alternative": A creative alternative way to express the same idea using different vocabulary, expressions, or sentence structures
 - "response": Your conversational response in Spanish to continue the dialogue
 - "explanation": Brief explanation in English of any major corrections made (or empty string if no corrections)`
       }
@@ -160,6 +162,11 @@ Respond with a JSON object containing:
                 description:
                   "The corrected and properly phrased Spanish version of the user's message",
               },
+              alternative: {
+                type: 'string',
+                description:
+                  "A creative alternative way to express the same idea using different vocabulary, expressions, or sentence structures",
+              },
               response: {
                 type: 'string',
                 description: 'A conversational response in Spanish to continue the dialogue',
@@ -170,7 +177,7 @@ Respond with a JSON object containing:
                   'Brief explanation in English of corrections made, or empty string if no corrections needed',
               },
             },
-            required: ['correction', 'response', 'explanation'],
+            required: ['correction', 'alternative', 'response', 'explanation'],
             additionalProperties: false,
           },
         },
@@ -184,6 +191,7 @@ Respond with a JSON object containing:
 
     res.json({
       correction: responseContent.correction,
+      alternative: responseContent.alternative,
       response: responseContent.response,
       explanation: responseContent.explanation,
       conversationHistory: [

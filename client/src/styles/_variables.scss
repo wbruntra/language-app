@@ -1,0 +1,46 @@
+// Custom Bootstrap variable overrides
+// These need to be defined before importing Bootstrap
+
+// Custom color palette
+$indigo: #6366f1 !default;
+$emerald: #10b981 !default;
+$amber: #f59e0b !default;
+$red: #ef4444 !default;
+$green: #22c55e !default;
+$cyan: #06b6d4 !default;
+$slate-50: #f8fafc !default;
+$slate-200: #e2e8f0 !default;
+
+// Override Bootstrap's theme colors
+$primary: $indigo !default;
+$secondary: #6b7280 !default; // Keep a neutral secondary
+$success: $emerald !default;
+$info: $cyan !default;
+$warning: $amber !default;
+$danger: $red !default;
+$light: #f8f9fa !default;
+$dark: #212529 !default;
+
+// Background colors
+$body-bg: $slate-50 !default;
+
+// Border colors
+$border-color: $slate-200 !default;
+
+// Component specific overrides
+$alert-border-width: 1px !default;
+$alert-border-radius: 0.5rem !default;
+
+// Button variables
+$btn-border-radius: 0.375rem !default;
+$btn-font-weight: 500 !default;
+
+// Badge variables
+$badge-border-radius: 0.375rem !default;
+
+// Navbar variables
+$navbar-light-color: rgba(0, 0, 0, 0.7) !default;
+$navbar-light-hover-color: rgba(0, 0, 0, 0.9) !default;
+$navbar-light-active-color: rgba(0, 0, 0, 0.9) !default;
+$navbar-light-brand-color: rgba(0, 0, 0, 0.9) !default;
+$navbar-light-brand-hover-color: rgba(0, 0, 0, 1) !default;

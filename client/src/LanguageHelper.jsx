@@ -9,13 +9,15 @@ function LanguageHelper() {
   const [isRecording, setIsRecording] = useState(false)
   const [recordingTime, setRecordingTime] = useState(0)
   const [audioLevel, setAudioLevel] = useState(0) // NEW: Audio level for visualization
-  
+
   // NEW: Conversation state
   const [conversationHistory, setConversationHistory] = useState([])
   const [lastCorrection, setLastCorrection] = useState('')
+  const [lastAlternative, setLastAlternative] = useState('')
   const [lastExplanation, setLastExplanation] = useState('')
   const [conversationLoading, setConversationLoading] = useState(false)
-  
+  const [correctionExpanded, setCorrectionExpanded] = useState(true)
+
   // NEW: Scenario state
   const [scenarioLoading, setScenarioLoading] = useState(false)
   const [currentScenario, setCurrentScenario] = useState(null)
@@ -225,20 +227,23 @@ function LanguageHelper() {
     try {
       const response = await axios.post('/api/conversation', {
         userMessage: editedTranscription.trim(),
-        conversationHistory: conversationHistory
+        conversationHistory: conversationHistory,
       })
 
       // Update conversation history
       setConversationHistory(response.data.conversationHistory)
-      
-      // Show correction and explanation
+
+      // Show correction, alternative, and explanation
       setLastCorrection(response.data.correction)
+      setLastAlternative(response.data.alternative)
       setLastExplanation(response.data.explanation)
       
+      // Expand correction panel when new correction arrives
+      setCorrectionExpanded(true)
+
       // Clear the input for next message
       setEditedTranscription('')
       setTranscription('')
-      
     } catch (err) {
       const errorMsg = err.response?.data?.error || err.message
       setError(`Failed to send message: ${errorMsg}`)
@@ -251,10 +256,12 @@ function LanguageHelper() {
   const clearConversation = () => {
     setConversationHistory([])
     setLastCorrection('')
+    setLastAlternative('')
     setLastExplanation('')
     setEditedTranscription('')
     setTranscription('')
     setCurrentScenario(null)
+    setCorrectionExpanded(true)
   }
 
   // NEW: Generate conversation scenario
@@ -264,21 +271,20 @@ function LanguageHelper() {
 
     try {
       const response = await axios.post('/api/scenario', {
-        suggestion: scenarioSuggestion.trim() || undefined
+        suggestion: scenarioSuggestion.trim() || undefined,
       })
 
       // Set the scenario and start conversation with initial message
       setCurrentScenario({
         title: response.data.title,
         context: response.data.context,
-        tips: response.data.tips
+        tips: response.data.tips,
       })
-      
+
       setConversationHistory(response.data.conversationHistory)
-      
+
       // Clear the suggestion input
       setScenarioSuggestion('')
-      
     } catch (err) {
       const errorMsg = err.response?.data?.error || err.message
       setError(`Failed to generate scenario: ${errorMsg}`)
@@ -319,48 +325,226 @@ function LanguageHelper() {
     : 'Idle'
 
   return (
-    <div className="container">
-      <div className="alert alert-info mt-3">
-        {conversationHistory.length === 0 && (
+    <div className="container-fluid px-1">
+      {conversationHistory.length === 0 && (
+        <div className="alert alert-info mt-2">
           <>
-            <h5>How to Use</h5>
-            <ul>
+            <h6 className="mb-2">How to Use</h6>
+            <ul className="mb-3 small">
               <li>Record yourself speaking Spanish using the microphone</li>
               <li>Edit the transcription if needed</li>
               <li>Send your message to get corrections and continue the conversation</li>
             </ul>
           </>
-        )}
-        <h6>Keyboard Commands</h6>
-        <ul>
-          <li>Ctrl + Space: Start/Stop Recording</li>
-          <li>Ctrl + X: Cancel Recording (while recording)</li>
-        </ul>
+          <div className="d-none d-md-block">
+            <h6 className="mb-1">Keyboard Commands</h6>
+            <ul className="mb-0 small">
+              <li>Ctrl + Space: Start/Stop Recording</li>
+              <li>Ctrl + X: Cancel Recording (while recording)</li>
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {error && <div className="alert alert-danger mt-2">{error}</div>}
+
+      {/* NEW: Scenario Generator - show when no conversation */}
+      {conversationHistory.length === 0 && (
+        <div className="scenario-generator mt-3">
+          <div className="card">
+            <div className="card-body p-3">
+              <h6 className="card-title">Start a Conversation</h6>
+              <p className="card-text small">
+                Get a conversation scenario to practice your Spanish, or start your own
+                conversation.
+              </p>
+
+              <div className="mb-3">
+                <label htmlFor="scenarioSuggestion" className="form-label small">
+                  Scenario Suggestion (optional)
+                </label>
+                <input
+                  type="text"
+                  id="scenarioSuggestion"
+                  className="form-control"
+                  value={scenarioSuggestion}
+                  onChange={(e) => setScenarioSuggestion(e.target.value)}
+                  placeholder="e.g., ordering food, asking directions..."
+                  disabled={scenarioLoading}
+                />
+              </div>
+
+              <button
+                className="btn btn-outline-primary w-100"
+                onClick={generateScenario}
+                disabled={scenarioLoading}
+              >
+                {scenarioLoading ? 'Generating...' : 'Generate Scenario'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* NEW: Current Scenario Display */}
+      {currentScenario && (
+        <div className="current-scenario mt-3">
+          <div className="alert alert-info p-3">
+            <h6>
+              <strong>Scenario:</strong> {currentScenario.title}
+            </h6>
+            <p className="mb-2 small">
+              <strong>Context:</strong> {currentScenario.context}
+            </p>
+            <p className="mb-0 small">
+              <strong>Tips:</strong> {currentScenario.tips}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* NEW: Correction Display */}
+      {lastCorrection && (
+        <div className="correction-display mt-3">
+          <div className="alert alert-success p-3">
+            <div 
+              className="d-flex justify-content-between align-items-center"
+              style={{ cursor: 'pointer' }}
+              onClick={() => setCorrectionExpanded(!correctionExpanded)}
+            >
+              <h6 className="mb-0">
+                {correctionExpanded ? 'Corrections & Alternatives' : `Corrected: "${lastCorrection}"`}
+              </h6>
+              <span className="badge bg-primary">
+                {correctionExpanded ? '−' : '+'}
+              </span>
+            </div>
+            
+            <div className={`collapse ${correctionExpanded ? 'show' : ''}`}>
+              <div className="mt-3">
+                <h6>Corrected Version:</h6>
+                <p className="mb-2">
+                  <strong>{lastCorrection}</strong>
+                </p>
+
+                {lastAlternative && (
+                  <>
+                    <h6 className="mt-3">Alternative Way to Say It:</h6>
+                    <p className="mb-2">
+                      <strong>{lastAlternative}</strong>
+                    </p>
+                  </>
+                )}
+
+                {lastExplanation && (
+                  <>
+                    <h6 className="mt-3">Explanation:</h6>
+                    <p className="mb-0 small">{lastExplanation}</p>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* NEW: Conversation History */}
+      {conversationHistory.length > 0 && (
+        <div className="conversation-history mt-3">
+          <h6>Conversation History</h6>
+          <div className="border rounded p-2" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+            {conversationHistory.map((msg, index) => (
+              <div
+                key={index}
+                className={`mb-2 ${msg.role === 'user' ? 'text-end' : 'text-start'}`}
+              >
+                <div
+                  className={`d-inline-block p-2 rounded small ${
+                    msg.role === 'user' ? 'bg-primary text-white' : 'bg-light border'
+                  }`}
+                  style={{ maxWidth: '85%' }}
+                >
+                  <strong>{msg.role === 'user' ? 'You' : 'Tutor'}:</strong> {msg.content}
+                </div>
+              </div>
+            ))}
+          </div>
+          <button
+            className="btn btn-sm btn-outline-secondary mt-2 w-100"
+            onClick={clearConversation}
+          >
+            Clear Conversation
+          </button>
+        </div>
+      )}
+
+      <div className="transcription mt-3">
+        <h6>Your Message</h6>
+        <textarea
+          ref={textareaRef}
+          value={editedTranscription}
+          onChange={handleTranscriptionEdit}
+          rows={4}
+          className="form-control"
+          placeholder="Speak to transcribe, or type your Spanish message here..."
+        />
+        <div className="mt-2 d-grid">
+          <button
+            className="btn btn-success"
+            onClick={sendMessage}
+            disabled={conversationLoading || !editedTranscription.trim()}
+          >
+            {conversationLoading ? 'Sending...' : 'Send Message'}
+          </button>
+        </div>
       </div>
 
-      <div className="controls mt-3">
-        <div className="d-flex align-items-center">
-          <div className={`recording-indicator ${isRecording ? 'active' : ''}`}></div>
+      <div className="controls mt-2">
+        <div className="d-flex align-items-center flex-wrap gap-2">
+          <div
+            className={`recording-indicator ${isRecording ? 'active' : ''} d-none d-sm-block`}
+          ></div>
           <button
-            className={`btn btn-sm btn-primary ${isRecording ? 'recording' : ''}`}
+            className={`btn btn-primary ${
+              isRecording ? 'recording' : ''
+            } flex-fill flex-sm-grow-0`}
             onClick={() => {
               shouldTranscribeRef.current = true
               isRecording ? stopRecording() : startRecording()
             }}
             disabled={loading}
           >
-            {isRecording ? 'Stop Recording' : 'Start Recording'}
+            <span className="d-none d-sm-inline">
+              {isRecording ? 'Stop Recording' : 'Start Recording'}
+            </span>
+            <span className="d-inline d-sm-none">{isRecording ? 'Stop' : 'Record'}</span>
           </button>
           {isRecording && (
-            <button className="btn btn-sm btn-warning ms-2" onClick={cancelRecording}>
-              Cancel Recording
+            <button className="btn btn-warning flex-fill flex-sm-grow-0" onClick={cancelRecording}>
+              <span className="d-none d-sm-inline">Cancel Recording</span>
+              <span className="d-inline d-sm-none">Cancel</span>
             </button>
           )}
           {loading && (
-            <button className="btn btn-sm btn-danger ms-2" onClick={cancelTranscription}>
-              Cancel Transcription
+            <button
+              className="btn btn-danger flex-fill flex-sm-grow-0"
+              onClick={cancelTranscription}
+            >
+              <span className="d-none d-sm-inline">Cancel Transcription</span>
+              <span className="d-inline d-sm-none">Cancel</span>
             </button>
           )}
+        </div>
+
+        {/* Mobile recording indicator */}
+        <div className="d-block d-sm-none mt-3">
+          <div className="d-flex align-items-center justify-content-center gap-2">
+            <div
+              className={`recording-indicator ${isRecording ? 'active' : ''}`}
+              style={{ margin: 0 }}
+            ></div>
+            <small className="text-muted">{statusText}</small>
+          </div>
         </div>
 
         {/* Audio visualization - only show when recording */}
@@ -372,121 +556,9 @@ function LanguageHelper() {
         )}
       </div>
 
-      {error && <div className="alert alert-danger mt-3">{error}</div>}
-
-      {/* NEW: Scenario Generator - show when no conversation */}
-      {conversationHistory.length === 0 && (
-        <div className="scenario-generator mt-4">
-          <div className="card">
-            <div className="card-body">
-              <h5 className="card-title">Start a Conversation</h5>
-              <p className="card-text">
-                Get a conversation scenario to practice your Spanish, or start your own conversation.
-              </p>
-              
-              <div className="mb-3">
-                <label htmlFor="scenarioSuggestion" className="form-label">
-                  Scenario Suggestion (optional)
-                </label>
-                <input
-                  type="text"
-                  id="scenarioSuggestion"
-                  className="form-control"
-                  value={scenarioSuggestion}
-                  onChange={(e) => setScenarioSuggestion(e.target.value)}
-                  placeholder="e.g., ordering food at a restaurant, asking for directions..."
-                  disabled={scenarioLoading}
-                />
-              </div>
-              
-              <button 
-                className="btn btn-outline-primary"
-                onClick={generateScenario}
-                disabled={scenarioLoading}
-              >
-                {scenarioLoading ? 'Generating Scenario...' : 'Generate Conversation Scenario'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* NEW: Current Scenario Display */}
-      {currentScenario && (
-        <div className="current-scenario mt-4">
-          <div className="alert alert-info">
-            <h6><strong>Scenario:</strong> {currentScenario.title}</h6>
-            <p className="mb-2"><strong>Context:</strong> {currentScenario.context}</p>
-            <p className="mb-0"><strong>Tips:</strong> {currentScenario.tips}</p>
-          </div>
-        </div>
-      )}
-
-      {/* NEW: Conversation History */}
-      {conversationHistory.length > 0 && (
-        <div className="conversation-history mt-4">
-          <h5>Conversation History</h5>
-          <div className="border rounded p-3" style={{ maxHeight: '300px', overflowY: 'auto' }}>
-            {conversationHistory.map((msg, index) => (
-              <div key={index} className={`mb-2 ${msg.role === 'user' ? 'text-end' : 'text-start'}`}>
-                <div
-                  className={`d-inline-block p-2 rounded ${
-                    msg.role === 'user' 
-                      ? 'bg-primary text-white' 
-                      : 'bg-light border'
-                  }`}
-                  style={{ maxWidth: '70%' }}
-                >
-                  <strong>{msg.role === 'user' ? 'You' : 'Tutor'}:</strong> {msg.content}
-                </div>
-              </div>
-            ))}
-          </div>
-          <button className="btn btn-sm btn-outline-secondary mt-2" onClick={clearConversation}>
-            Clear Conversation
-          </button>
-        </div>
-      )}
-
-      {/* NEW: Correction Display */}
-      {lastCorrection && (
-        <div className="correction-display mt-4">
-          <div className="alert alert-success">
-            <h6>Corrected Version:</h6>
-            <p className="mb-1"><strong>{lastCorrection}</strong></p>
-            {lastExplanation && (
-              <>
-                <h6 className="mt-2">Explanation:</h6>
-                <p className="mb-0">{lastExplanation}</p>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      <div className="transcription mt-4">
-        <h5>Your Message</h5>
-        <textarea
-          ref={textareaRef}
-          value={editedTranscription}
-          onChange={handleTranscriptionEdit}
-          rows={4}
-          className="form-control"
-          placeholder="Speak to transcribe, or type your Spanish message here..."
-        />
-        <div className="mt-2">
-          <button 
-            className="btn btn-success"
-            onClick={sendMessage}
-            disabled={conversationLoading || !editedTranscription.trim()}
-          >
-            {conversationLoading ? 'Sending...' : 'Send Message'}
-          </button>
-        </div>
-      </div>
-
-      <p className="my-2">
-        Recording Status: {isRecording
+      <p className="my-2 small text-muted d-none d-md-block">
+        Recording Status:{' '}
+        {isRecording
           ? `Recording, ${recordingTime} seconds`
           : loading
           ? 'Transcribing...'

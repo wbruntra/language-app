@@ -26,18 +26,22 @@ function AppContent() {
 
   return (
     <div>
-      <nav className="navbar navbar-light bg-light py-1 mb-2">
-        <div className="container-fluid">
-          <span className="navbar-brand mb-0 h6">Spanish Language Helper</span>
+      <nav className="navbar navbar-light bg-light py-2 mb-2 sticky-top">
+        <div className="container-fluid px-3">
+          <span className="navbar-brand mb-0 h6 d-none d-sm-block">Spanish Language Helper</span>
+          <span className="navbar-brand mb-0 small d-block d-sm-none">Spanish Helper</span>
           <button 
             className="btn btn-outline-secondary btn-sm"
             onClick={logout}
           >
-            Logout
+            <span className="d-none d-sm-inline">Logout</span>
+            <span className="d-inline d-sm-none">Exit</span>
           </button>
         </div>
       </nav>
-      <LanguageHelper />
+      <div className="container-fluid px-2 px-sm-3">
+        <LanguageHelper />
+      </div>
     </div>
   )
 }

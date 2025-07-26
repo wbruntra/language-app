@@ -16,7 +16,14 @@ export default defineConfig({
   css: {
     preprocessorOptions: {
       scss: {
-        quietDeps: true,
+        quietDeps: true, // Keep this for dependency warnings
+        sassOptions: {
+          // Suppress all Sass warnings, including deprecation warnings
+          // quiet: true,
+          // Alternatively, you can target specific deprecation warnings (more precise)
+          quiet: false,
+          silenceDeprecations: ['import'], // Suppress only @import deprecation warnings
+        },
       },
     },
   },

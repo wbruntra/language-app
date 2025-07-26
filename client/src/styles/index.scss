@@ -1,3 +1,8 @@
-@use 'bootstrap/scss/bootstrap';
-// @use './bootstrap4-compatibility.scss';
-@use './custom' as *;
+// Import custom variables first (before Bootstrap)
+@import './variables';
+
+// Import Bootstrap with our custom variables
+@import 'bootstrap/scss/bootstrap';
+
+// Import our additional custom styles
+@import './custom';
