@@ -4,7 +4,7 @@ const logger = require('morgan')
 const path = require('path')
 const cookieSession = require('cookie-session')
 const secrets = require('./secrets')
-
+const { expressAuth } = require('simple-express-react-auth')
 
 require('dotenv').config()
 
@@ -24,11 +24,14 @@ app.use(
   }),
 )
 
-app.use('/api/auth', require('./routes/auth'))
+const { router: authRouter, requireAuth } = expressAuth.createAuth({
+  password: secrets.password,
+})
+
+app.use('/api/auth', authRouter)
 
 const transcriptionsRouter = require('./routes/transcriptions')
-app.use('/api', transcriptionsRouter)
-
+app.use('/api', requireAuth, transcriptionsRouter)
 
 // Start server
 const PORT = process.env.PORT || 13010

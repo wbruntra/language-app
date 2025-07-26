@@ -5,7 +5,6 @@ const { OpenAI } = require('openai')
 const ffmpeg = require('fluent-ffmpeg')
 const multer = require('multer')
 const { Readable, PassThrough } = require('stream')
-const { requireLogin } = require('../middleware/auth')
 
 // Use memory storage instead of disk storage
 const upload = multer({
@@ -51,7 +50,6 @@ router.get('/', (req, res) => {
   res.send('Language Helper API is running')
 })
 
-router.use(requireLogin) // Ensure authentication for all routes
 router.post('/transcribe', upload.single('audio'), async (req, res) => {
   try {
     const audioFile = req.file
