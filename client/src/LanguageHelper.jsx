@@ -11,6 +11,7 @@ function LanguageHelper({ selectedLanguage }) {
   const {
     // State from store
     error,
+    editedTranscription,
     conversationHistory,
     lastCorrection,
     lastAlternative,
@@ -229,21 +230,12 @@ function LanguageHelper({ selectedLanguage }) {
     <div className="container-fluid px-1">
       {conversationHistory.length === 0 && (
         <div className="alert alert-info mt-2">
-          <>
-            <h6 className="mb-2">How to Use</h6>
-            <ul className="mb-3 small">
-              <li>Record yourself speaking {currentLanguage.name} using the microphone</li>
-              <li>Edit the transcription if needed</li>
-              <li>Send your message to get corrections and continue the conversation</li>
-            </ul>
-          </>
-          <div className="d-none d-md-block">
-            <h6 className="mb-1">Keyboard Commands</h6>
-            <ul className="mb-0 small">
-              <li>Ctrl + Space: Start/Stop Recording</li>
-              <li>Ctrl + X: Cancel Recording (while recording)</li>
-            </ul>
-          </div>
+          <h6 className="mb-2">How to Use</h6>
+          <ul className="mb-0 small">
+            <li>Use the microphone button to record yourself speaking {currentLanguage.name}</li>
+            <li>Edit the transcription if needed in the text area</li>
+            <li>Send your message to get corrections and continue the conversation</li>
+          </ul>
         </div>
       )}
 
@@ -403,9 +395,8 @@ function LanguageHelper({ selectedLanguage }) {
         currentLanguage={currentLanguage}
         onSendMessage={sendMessage}
         conversationLoading={conversationLoading}
+        currentSelectedLanguage={currentSelectedLanguage}
       />
-
-      <RecordingControls currentSelectedLanguage={currentSelectedLanguage} />
 
       {/* NEW: Follow-up Question Modal */}
       {showFollowupModal && (
