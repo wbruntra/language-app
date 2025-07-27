@@ -5,8 +5,8 @@ const { OpenAI } = require('openai')
 const ffmpeg = require('fluent-ffmpeg')
 const multer = require('multer')
 const { Readable, PassThrough } = require('stream')
-const { createTextToSpeech } = require('./utils/openAI')
-const { uploadData } = require('./linodeUtils')
+const { createTextToSpeech } = require('../utils/openAI')
+const { uploadData } = require('../linodeUtils')
 
 // Language configuration - centralized for easy maintenance
 const LANGUAGE_CONFIG = {

@@ -3,7 +3,13 @@ const secrets = require('./secrets')
 const shortUUID = require('short-uuid')
 const db = require('./db_connection')
 
-const uploadData = async ({ dataBuffer, linodePath, fileName, uploadType }) => {
+const uploadData = async ({ dataBuffer, linodePath, fileName, fileExtension, uploadType }) => {
+  const uploadId = shortUUID.generate()
+
+  if (!fileName) {
+    fileName = uploadId + (fileExtension ? `.${fileExtension}` : '.txt')
+  }
+
   const result = await s3.uploadData({
     data: dataBuffer,
     key: linodePath + fileName,
@@ -13,9 +19,6 @@ const uploadData = async ({ dataBuffer, linodePath, fileName, uploadType }) => {
 
   console.log('Upload successful:', result)
 
-  // Save the upload information to the database
-  const uploadId = shortUUID.generate()
-
   await db('uploads').insert({
     id: uploadId,
     url: result.publicUrl,
@@ -23,15 +26,24 @@ const uploadData = async ({ dataBuffer, linodePath, fileName, uploadType }) => {
     upload_type: uploadType || 'unknown',
   })
 
-  return result
+  return {
+    id: uploadId,
+    url: result.publicUrl,
+    filename: fileName,
+  }
 }
 
 const testUpload = async () => {
   const dataBuffer = Buffer.from('Hello, Linode S3!')
   const linodePath = 'test/'
-  const fileName = 'test-file.txt'
 
-  const result = await uploadData({ dataBuffer, linodePath, fileName, uploadType: 'test' })
+  const result = await uploadData({
+    dataBuffer,
+    linodePath,
+    // fileName,
+    fileExtension: 'txt',
+    uploadType: 'test',
+  })
   console.log('Upload result:', result)
 }
 
