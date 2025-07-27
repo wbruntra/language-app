@@ -13,18 +13,16 @@ module.exports = {
     },
     useNullAsDefault: true, // SQLite requires this
   },
-
-  production: {
+  staging: {
     client: 'sqlite3',
     connection: {
       filename: path.join(__dirname, 'dev.sqlite3'),
     },
-    pool: {
-      min: 2,
-      max: 10,
-    },
-    migrations: {
-      tableName: 'knex_migrations',
+  },
+  production: {
+    client: 'sqlite3',
+    connection: {
+      filename: path.join(__dirname, 'dev.sqlite3'),
     },
   },
 }
