@@ -1,14 +1,18 @@
 import { createSlice } from '@reduxjs/toolkit'
 
 const initialState = {
-  // Recording and transcription state
+  // Recording
+  isRecording: false,
+  // audioLevel removed - now handled locally
+  // recordingTime removed - now handled locally
+
+  // Transcription state
   transcription: '',
   editedTranscription: '',
-  error: '',
+
+  // UI State
   loading: false,
-  isRecording: false,
-  recordingTime: 0,
-  audioLevel: 0,
+  error: null,
 
   // Conversation state
   conversationHistory: [],
@@ -68,15 +72,9 @@ const languageHelperSlice = createSlice({
     setIsRecording: (state, action) => {
       state.isRecording = action.payload
     },
-    setRecordingTime: (state, action) => {
-      state.recordingTime = action.payload
-    },
-    incrementRecordingTime: (state) => {
-      state.recordingTime += 1
-    },
-    setAudioLevel: (state, action) => {
-      state.audioLevel = action.payload
-    },
+    // setRecordingTime removed - now handled locally
+    // incrementRecordingTime removed - now handled locally
+    // setAudioLevel removed - now handled locally
 
     // Conversation actions
     setConversationHistory: (state, action) => {
@@ -162,8 +160,8 @@ const languageHelperSlice = createSlice({
 
     resetRecording: (state) => {
       state.isRecording = false
-      state.recordingTime = 0
-      state.audioLevel = 0
+      // recordingTime removed - now handled locally
+      // audioLevel removed - now handled locally
     },
 
     resetTranscription: (state) => {
@@ -201,9 +199,9 @@ export const {
   setError,
   setLoading,
   setIsRecording,
-  setRecordingTime,
-  incrementRecordingTime,
-  setAudioLevel,
+  // setRecordingTime removed - now handled locally
+  // incrementRecordingTime removed - now handled locally
+  // setAudioLevel removed - now handled locally
 
   // Conversation actions
   setConversationHistory,

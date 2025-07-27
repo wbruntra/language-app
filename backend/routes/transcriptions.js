@@ -6,6 +6,52 @@ const ffmpeg = require('fluent-ffmpeg')
 const multer = require('multer')
 const { Readable, PassThrough } = require('stream')
 
+// Language configuration - centralized for easy maintenance
+const LANGUAGE_CONFIG = {
+  spanish: {
+    name: 'Spanish',
+    nativeName: 'español',
+    isoCode: 'es',
+    level: 'intermediate Spanish',
+  },
+  french: {
+    name: 'French',
+    nativeName: 'français',
+    isoCode: 'fr',
+    level: 'intermediate French',
+  },
+  german: {
+    name: 'German',
+    nativeName: 'Deutsch',
+    isoCode: 'de',
+    level: 'intermediate German',
+  },
+  italian: {
+    name: 'Italian',
+    nativeName: 'italiano',
+    isoCode: 'it',
+    level: 'intermediate Italian',
+  },
+  portuguese: {
+    name: 'Portuguese',
+    nativeName: 'português',
+    isoCode: 'pt',
+    level: 'intermediate Portuguese',
+  },
+  english: {
+    name: 'English',
+    nativeName: 'English',
+    isoCode: 'en',
+    level: 'intermediate English',
+  },
+  'auto-detect': {
+    name: 'Auto-detect',
+    nativeName: 'Auto-detect',
+    isoCode: null, // Special case for auto-detection
+    level: 'auto-detect',
+  },
+}
+
 // Use memory storage instead of disk storage
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -65,18 +111,9 @@ router.post('/transcribe', upload.single('audio'), async (req, res) => {
       language
     })
 
-    // Map our language keys to ISO-639-1 codes
-    const languageToISO = {
-      spanish: 'es',
-      french: 'fr',
-      german: 'de',
-      italian: 'it',
-      portuguese: 'pt',
-      english: 'en',
-      'auto-detect': null // Special case for auto-detection
-    }
-
-    const isoLanguageCode = languageToISO[language] || 'es' // Default to Spanish
+    // Get language configuration
+    const languageConfig = LANGUAGE_CONFIG[language] || LANGUAGE_CONFIG.spanish
+    const isoLanguageCode = languageConfig.isoCode
 
     let finalBuffer = audioFile.buffer
 
@@ -134,35 +171,8 @@ router.post('/conversation', async (req, res) => {
       language,
     })
 
-    // Language-specific configurations
-    const languageConfigs = {
-      spanish: {
-        name: 'Spanish',
-        nativeName: 'español',
-      },
-      french: {
-        name: 'French',
-        nativeName: 'français',
-      },
-      german: {
-        name: 'German',
-        nativeName: 'Deutsch',
-      },
-      italian: {
-        name: 'Italian',
-        nativeName: 'italiano',
-      },
-      portuguese: {
-        name: 'Portuguese',
-        nativeName: 'português',
-      },
-      english: {
-        name: 'English',
-        nativeName: 'English',
-      },
-    }
-
-    const selectedLanguage = languageConfigs[language] || languageConfigs.spanish
+    // Get language configuration
+    const selectedLanguage = LANGUAGE_CONFIG[language] || LANGUAGE_CONFIG.spanish
     const languageName = selectedLanguage.name
     const nativeName = selectedLanguage.nativeName
 
@@ -271,41 +281,8 @@ router.post('/scenario', async (req, res) => {
 
     console.log('Received scenario request:', { suggestion, language })
 
-    // Language-specific configurations
-    const languageConfigs = {
-      spanish: {
-        name: 'Spanish',
-        nativeName: 'español',
-        level: 'intermediate Spanish',
-      },
-      french: {
-        name: 'French',
-        nativeName: 'français',
-        level: 'intermediate French',
-      },
-      german: {
-        name: 'German',
-        nativeName: 'Deutsch',
-        level: 'intermediate German',
-      },
-      italian: {
-        name: 'Italian',
-        nativeName: 'italiano',
-        level: 'intermediate Italian',
-      },
-      portuguese: {
-        name: 'Portuguese',
-        nativeName: 'português',
-        level: 'intermediate Portuguese',
-      },
-      english: {
-        name: 'English',
-        nativeName: 'English',
-        level: 'intermediate English',
-      },
-    }
-
-    const selectedLanguage = languageConfigs[language] || languageConfigs.spanish
+    // Get language configuration
+    const selectedLanguage = LANGUAGE_CONFIG[language] || LANGUAGE_CONFIG.spanish
     const languageName = selectedLanguage.name
     const nativeName = selectedLanguage.nativeName
     const levelDescription = selectedLanguage.level
@@ -422,17 +399,8 @@ router.post('/followup', async (req, res) => {
       language,
     })
 
-    // Language-specific configurations for context
-    const languageConfigs = {
-      spanish: { name: 'Spanish', nativeName: 'español' },
-      french: { name: 'French', nativeName: 'français' },
-      german: { name: 'German', nativeName: 'Deutsch' },
-      italian: { name: 'Italian', nativeName: 'italiano' },
-      portuguese: { name: 'Portuguese', nativeName: 'português' },
-      english: { name: 'English', nativeName: 'English' },
-    }
-
-    const selectedLanguage = languageConfigs[language] || languageConfigs.spanish
+    // Get language configuration
+    const selectedLanguage = LANGUAGE_CONFIG[language] || LANGUAGE_CONFIG.spanish
     const languageName = selectedLanguage.name
 
     // Build the context from the correction information

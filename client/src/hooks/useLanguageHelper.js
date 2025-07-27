@@ -6,9 +6,9 @@ import {
   setError,
   setLoading,
   setIsRecording,
-  setRecordingTime,
-  incrementRecordingTime,
-  setAudioLevel,
+  // setRecordingTime removed - now handled locally
+  // incrementRecordingTime removed - now handled locally
+  // setAudioLevel removed - now handled locally in RecordingControls
   setConversationHistory,
   addToConversationHistory,
   setLastCorrection,
@@ -56,9 +56,9 @@ export const useLanguageHelper = () => {
       setError: (payload) => dispatch(setError(payload)),
       setLoading: (payload) => dispatch(setLoading(payload)),
       setIsRecording: (payload) => dispatch(setIsRecording(payload)),
-      setRecordingTime: (payload) => dispatch(setRecordingTime(payload)),
-      incrementRecordingTime: () => dispatch(incrementRecordingTime()),
-      setAudioLevel: (payload) => dispatch(setAudioLevel(payload)),
+      // setRecordingTime removed - now handled locally
+      // incrementRecordingTime removed - now handled locally
+      // setAudioLevel removed - now handled locally
 
       // Conversation
       setConversationHistory: (payload) => dispatch(setConversationHistory(payload)),
@@ -102,20 +102,15 @@ export const useRecording = () => {
   const dispatch = useDispatch()
   const {
     isRecording,
-    recordingTime,
-    audioLevel,
     loading
   } = useSelector((state) => state.languageHelper)
 
   return {
     isRecording,
-    recordingTime,
-    audioLevel,
     loading,
+    // recordingTime removed - now handled locally in RecordingControls
+    // audioLevel removed - now handled locally in RecordingControls
     setIsRecording: (payload) => dispatch(setIsRecording(payload)),
-    setRecordingTime: (payload) => dispatch(setRecordingTime(payload)),
-    incrementRecordingTime: () => dispatch(incrementRecordingTime()),
-    setAudioLevel: (payload) => dispatch(setAudioLevel(payload)),
     setLoading: (payload) => dispatch(setLoading(payload)),
     resetRecording: () => dispatch(resetRecording()),
   }

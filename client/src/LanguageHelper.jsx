@@ -1,24 +1,16 @@
-import { useRef, useEffect, useState, useCallback } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import axios from 'axios'
 import { useLanguageHelper } from './hooks/useLanguageHelper'
 import { useDispatch } from 'react-redux'
-import { 
-  incrementRecordingTime, 
-  setRecordingTime, 
-  clearConversation 
-} from './store/languageHelperSlice'
+import { clearConversation } from './store/languageHelperSlice'
+import RecordingControls from './components/RecordingControls'
+import TranscriptionInput from './components/TranscriptionInput'
 
 function LanguageHelper({ selectedLanguage }) {
   // Use Redux store via our custom hook
   const {
     // State from store
-    transcription,
-    editedTranscription,
     error,
-    loading,
-    isRecording,
-    recordingTime,
-    audioLevel,
     conversationHistory,
     lastCorrection,
     lastAlternative,
@@ -45,207 +37,20 @@ function LanguageHelper({ selectedLanguage }) {
   // Get the current selected language (either from prop or store)
   const currentSelectedLanguage = selectedLanguage || 'spanish'
 
+  // Refs for follow-up recording functionality only
   const shouldTranscribeRef = useRef(true)
   const mediaRecorderRef = useRef(null)
   const audioChunksRef = useRef([])
-  const textareaRef = useRef(null)
-  const abortControllerRef = useRef(null)
-  const timerRef = useRef(null)
-  // NEW: Audio visualization refs
-  const audioContextRef = useRef(null)
-  const analyserRef = useRef(null)
-  const animationRef = useRef(null)
 
-  // Add effect for keyboard event listener
+  // Add effect for keyboard event listener (only for follow-up modal)
   useEffect(() => {
-    const handleKeyPress = (event) => {
-      if (event.ctrlKey && !event.repeat && !loading) {
-        if (event.code === 'Space') {
-          event.preventDefault()
-          if (!isRecording) {
-            shouldTranscribeRef.current = true
-            startRecording()
-          } else {
-            shouldTranscribeRef.current = true
-            stopRecording()
-          }
-        } else if (event.code === 'KeyX' && isRecording) {
-          event.preventDefault()
-          cancelRecording()
-        }
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyPress)
-    return () => {
-      document.removeEventListener('keydown', handleKeyPress)
-    }
-  }, [isRecording, loading])
-
-  // Add effect for recording timer
-  useEffect(() => {
-    if (isRecording) {
-      timerRef.current = setInterval(() => {
-        dispatch(incrementRecordingTime())
-      }, 1000)
-    } else {
-      clearInterval(timerRef.current)
-      dispatch(setRecordingTime(0))
-    }
-
-    return () => clearInterval(timerRef.current)
-  }, [isRecording, dispatch])
+    // This is now handled in RecordingControls component
+  }, [])
 
   // Clear conversation when language changes
   useEffect(() => {
     dispatch(clearConversation())
   }, [selectedLanguage, dispatch])
-
-  // NEW: Audio visualization function
-  const startAudioVisualization = (stream) => {
-    try {
-      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)()
-      analyserRef.current = audioContextRef.current.createAnalyser()
-      const source = audioContextRef.current.createMediaStreamSource(stream)
-
-      analyserRef.current.fftSize = 256
-      analyserRef.current.smoothingTimeConstant = 0.8
-      source.connect(analyserRef.current)
-
-      const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount)
-
-      const updateAudioLevel = () => {
-        if (!analyserRef.current) return
-
-        analyserRef.current.getByteFrequencyData(dataArray)
-        const average = dataArray.reduce((a, b) => a + b) / dataArray.length
-        actions.setAudioLevel(average / 255) // Normalize to 0-1
-
-        animationRef.current = requestAnimationFrame(updateAudioLevel)
-      }
-
-      animationRef.current = requestAnimationFrame(updateAudioLevel)
-    } catch (err) {
-      console.warn('Audio visualization not supported:', err)
-    }
-  }
-
-  // NEW: Stop audio visualization
-  const stopAudioVisualization = () => {
-    if (animationRef.current) {
-      cancelAnimationFrame(animationRef.current)
-      animationRef.current = null
-    }
-    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-      audioContextRef.current.close()
-      audioContextRef.current = null
-    }
-    analyserRef.current = null
-    actions.setAudioLevel(0)
-  }
-
-  // MODIFIED: Start recording with visualization
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-
-      // Start audio visualization
-      startAudioVisualization(stream)
-
-      mediaRecorderRef.current = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus',
-      })
-      audioChunksRef.current = []
-
-      mediaRecorderRef.current.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          audioChunksRef.current.push(e.data)
-        }
-      }
-
-      mediaRecorderRef.current.onstop = async () => {
-        if (shouldTranscribeRef.current) {
-          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm;codecs=opus' })
-          await transcribeAudio(audioBlob)
-        }
-        stream.getTracks().forEach((track) => track.stop())
-        shouldTranscribeRef.current = true
-
-        // Stop visualization when recording stops
-        stopAudioVisualization()
-      }
-
-      mediaRecorderRef.current.start()
-      actions.setIsRecording(true)
-      actions.setError('')
-      actions.setTranscription('')
-    } catch (err) {
-      actions.setError('Failed to access microphone. Please allow microphone access.')
-      stopAudioVisualization() // Clean up on error
-    }
-  }
-
-  // MODIFIED: Stop recording with visualization cleanup
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop()
-      actions.setIsRecording(false)
-    }
-  }
-
-  // MODIFIED: Cancel recording with visualization cleanup
-  const cancelRecording = () => {
-    shouldTranscribeRef.current = false
-    stopRecording()
-    stopAudioVisualization() // Make sure visualization stops immediately
-  }
-
-  // Transcribe the recorded audio
-  const transcribeAudio = async (audioBlob) => {
-    abortControllerRef.current = new AbortController()
-    actions.setLoading(true)
-    const formData = new FormData()
-    formData.append('audio', audioBlob, 'recording.webm')
-    formData.append('language', currentSelectedLanguage)
-
-    try {
-      const response = await axios.post('/api/transcribe', formData, {
-        signal: abortControllerRef.current.signal,
-      })
-      actions.setTranscription(response.data)
-      actions.appendToEditedTranscription(response.data)
-      actions.setError('')
-    } catch (err) {
-      if (axios.isCancel(err)) {
-        actions.setError('Transcription canceled by user.')
-      } else {
-        const errorMsg = err.response?.data || err.message
-        actions.setError(`Failed to transcribe audio: ${errorMsg}`)
-      }
-    } finally {
-      actions.setLoading(false)
-      abortControllerRef.current = null
-    }
-  }
-
-  const cancelTranscription = () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
-      actions.setLoading(false)
-      actions.setError('Transcription canceled.')
-    }
-  }
-
-  const handleTranscriptionEdit = (e) => {
-    actions.setEditedTranscription(e.target.value)
-  }
-
-  // NEW: Handle language change
-  const handleLanguageChange = (language) => {
-    // This function is now handled in AppContent
-    // Clear current conversation when language changes
-    actions.clearConversation()
-  }
 
   // NEW: Send message for conversation
   const sendMessage = async () => {
@@ -419,37 +224,6 @@ function LanguageHelper({ selectedLanguage }) {
       actions.setFollowupLoading(false)
     }
   }
-
-  // NEW: Audio visualizer component
-  const AudioVisualizer = () => (
-    <div
-      style={{
-        width: '200px',
-        height: '6px',
-        backgroundColor: '#e0e0e0',
-        borderRadius: '3px',
-        overflow: 'hidden',
-        margin: '8px 0',
-        border: '1px solid #ccc',
-      }}
-    >
-      <div
-        style={{
-          width: `${audioLevel * 100}%`,
-          height: '100%',
-          backgroundColor: audioLevel > 0.7 ? '#dc3545' : audioLevel > 0.3 ? '#fd7e14' : '#28a745',
-          transition: 'width 0.1s ease-out',
-          borderRadius: '2px',
-        }}
-      />
-    </div>
-  )
-
-  const statusText = isRecording
-    ? `Recording, ${recordingTime} seconds`
-    : loading
-    ? 'Transcribing...'
-    : 'Idle'
 
   return (
     <div className="container-fluid px-1">
@@ -625,92 +399,13 @@ function LanguageHelper({ selectedLanguage }) {
         </div>
       )}
 
-      <div className="transcription mt-3">
-        <h6>Your Message</h6>
-        <textarea
-          ref={textareaRef}
-          value={editedTranscription}
-          onChange={handleTranscriptionEdit}
-          rows={4}
-          className="form-control"
-          placeholder={`Speak to transcribe, or type your ${currentLanguage.name} message here...`}
-        />
-        <div className="mt-2 d-grid">
-          <button
-            className="btn btn-success"
-            onClick={sendMessage}
-            disabled={conversationLoading || !editedTranscription.trim()}
-          >
-            {conversationLoading ? 'Sending...' : 'Send Message'}
-          </button>
-        </div>
-      </div>
+      <TranscriptionInput 
+        currentLanguage={currentLanguage}
+        onSendMessage={sendMessage}
+        conversationLoading={conversationLoading}
+      />
 
-      <div className="controls mt-2">
-        <div className="d-flex align-items-center flex-wrap gap-2">
-          <div
-            className={`recording-indicator ${isRecording ? 'active' : ''} d-none d-sm-block`}
-          ></div>
-          <button
-            className={`btn btn-primary ${
-              isRecording ? 'recording' : ''
-            } flex-fill flex-sm-grow-0`}
-            onClick={() => {
-              shouldTranscribeRef.current = true
-              isRecording ? stopRecording() : startRecording()
-            }}
-            disabled={loading}
-          >
-            <span className="d-none d-sm-inline">
-              {isRecording ? 'Stop Recording' : 'Start Recording'}
-            </span>
-            <span className="d-inline d-sm-none">{isRecording ? 'Stop' : 'Record'}</span>
-          </button>
-          {isRecording && (
-            <button className="btn btn-warning flex-fill flex-sm-grow-0" onClick={cancelRecording}>
-              <span className="d-none d-sm-inline">Cancel Recording</span>
-              <span className="d-inline d-sm-none">Cancel</span>
-            </button>
-          )}
-          {loading && (
-            <button
-              className="btn btn-danger flex-fill flex-sm-grow-0"
-              onClick={cancelTranscription}
-            >
-              <span className="d-none d-sm-inline">Cancel Transcription</span>
-              <span className="d-inline d-sm-none">Cancel</span>
-            </button>
-          )}
-        </div>
-
-        {/* Mobile recording indicator */}
-        <div className="d-block d-sm-none mt-3">
-          <div className="d-flex align-items-center justify-content-center gap-2">
-            <div
-              className={`recording-indicator ${isRecording ? 'active' : ''}`}
-              style={{ margin: 0 }}
-            ></div>
-            <small className="text-muted">{statusText}</small>
-          </div>
-        </div>
-
-        {/* Audio visualization - only show when recording */}
-        {isRecording && (
-          <div className="mt-2">
-            <small className="text-muted">Audio Level:</small>
-            <AudioVisualizer />
-          </div>
-        )}
-      </div>
-
-      <p className="my-2 small text-muted d-none d-md-block">
-        Recording Status:{' '}
-        {isRecording
-          ? `Recording, ${recordingTime} seconds`
-          : loading
-          ? 'Transcribing...'
-          : 'Ready'}
-      </p>
+      <RecordingControls currentSelectedLanguage={currentSelectedLanguage} />
 
       {/* NEW: Follow-up Question Modal */}
       {showFollowupModal && (
