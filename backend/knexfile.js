@@ -18,11 +18,13 @@ module.exports = {
     connection: {
       filename: path.join(__dirname, 'dev.sqlite3'),
     },
+    useNullAsDefault: true, // SQLite requires this
   },
   production: {
     client: 'sqlite3',
     connection: {
       filename: path.join(__dirname, 'dev.sqlite3'),
     },
+    useNullAsDefault: true, // SQLite requires this
   },
 }
