@@ -22,6 +22,11 @@ const initialState = {
   conversationLoading: false,
   correctionExpanded: true,
 
+  // TTS (Text-to-Speech) state
+  ttsEnabled: true, // Default to enabled
+  lastAudioUrl: null,
+  isPlayingAudio: false,
+
   // Scenario state
   scenarioLoading: false,
   currentScenario: null,
@@ -99,6 +104,17 @@ const languageHelperSlice = createSlice({
       state.correctionExpanded = action.payload
     },
 
+    // TTS actions
+    setTtsEnabled: (state, action) => {
+      state.ttsEnabled = action.payload
+    },
+    setLastAudioUrl: (state, action) => {
+      state.lastAudioUrl = action.payload
+    },
+    setIsPlayingAudio: (state, action) => {
+      state.isPlayingAudio = action.payload
+    },
+
     // Scenario actions
     setScenarioLoading: (state, action) => {
       state.scenarioLoading = action.payload
@@ -171,11 +187,12 @@ const languageHelperSlice = createSlice({
 
     // Update conversation result (for API responses)
     updateConversationResult: (state, action) => {
-      const { conversationHistory, correction, alternative, explanation } = action.payload
+      const { conversationHistory, correction, alternative, explanation, audioUrl } = action.payload
       state.conversationHistory = conversationHistory
       state.lastCorrection = correction
       state.lastAlternative = alternative
       state.lastExplanation = explanation
+      state.lastAudioUrl = audioUrl || null
       state.correctionExpanded = true
       state.editedTranscription = ''
       state.transcription = ''
@@ -211,6 +228,11 @@ export const {
   setLastExplanation,
   setConversationLoading,
   setCorrectionExpanded,
+
+  // TTS actions
+  setTtsEnabled,
+  setLastAudioUrl,
+  setIsPlayingAudio,
 
   // Scenario actions
   setScenarioLoading,

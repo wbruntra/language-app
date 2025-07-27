@@ -18,6 +18,9 @@ function LanguageHelper({ selectedLanguage }) {
     lastExplanation,
     conversationLoading,
     correctionExpanded,
+    ttsEnabled,
+    lastAudioUrl,
+    isPlayingAudio,
     scenarioLoading,
     currentScenario,
     scenarioSuggestion,
@@ -42,11 +45,14 @@ function LanguageHelper({ selectedLanguage }) {
   const shouldTranscribeRef = useRef(true)
   const mediaRecorderRef = useRef(null)
   const audioChunksRef = useRef([])
+  const conversationHistoryRef = useRef(null)
 
-  // Add effect for keyboard event listener (only for follow-up modal)
+  // Auto-scroll to bottom when conversation history changes
   useEffect(() => {
-    // This is now handled in RecordingControls component
-  }, [])
+    if (conversationHistoryRef.current) {
+      conversationHistoryRef.current.scrollTop = conversationHistoryRef.current.scrollHeight
+    }
+  }, [conversationHistory, conversationLoading])
 
   // Clear conversation when language changes
   useEffect(() => {
@@ -60,14 +66,27 @@ function LanguageHelper({ selectedLanguage }) {
       return
     }
 
+    const userMessage = editedTranscription.trim()
+    
+    // Immediately add user message to conversation history
+    const updatedHistory = [
+      ...conversationHistory,
+      { role: 'user', content: userMessage }
+    ]
+    actions.setConversationHistory(updatedHistory)
+    
+    // Clear the input and start loading
+    actions.setEditedTranscription('')
+    actions.setTranscription('')
     actions.setConversationLoading(true)
     actions.setError('')
 
     try {
       const response = await axios.post('/api/conversation', {
-        userMessage: editedTranscription.trim(),
-        conversationHistory: conversationHistory,
+        userMessage: userMessage,
+        conversationHistory: conversationHistory, // Send original history (without the user message we just added)
         language: currentSelectedLanguage,
+        enableTTS: ttsEnabled, // Include TTS setting
       })
 
       // Update conversation result using the combined action
@@ -76,10 +95,13 @@ function LanguageHelper({ selectedLanguage }) {
         correction: response.data.correction,
         alternative: response.data.alternative,
         explanation: response.data.explanation,
+        audioUrl: response.data.audioUrl, // Include audio URL
       })
     } catch (err) {
       const errorMsg = err.response?.data?.error || err.message
       actions.setError(`Failed to send message: ${errorMsg}`)
+      // On error, remove the user message we optimistically added
+      actions.setConversationHistory(conversationHistory)
     } finally {
       actions.setConversationLoading(false)
     }
@@ -229,6 +251,30 @@ function LanguageHelper({ selectedLanguage }) {
     }
   }
 
+  // Audio playback function
+  const playAudio = async (audioUrl) => {
+    if (!audioUrl) return
+
+    try {
+      actions.setIsPlayingAudio(true)
+      const audio = new Audio(audioUrl)
+      
+      audio.onended = () => {
+        actions.setIsPlayingAudio(false)
+      }
+      
+      audio.onerror = () => {
+        actions.setIsPlayingAudio(false)
+        actions.setError('Failed to play audio')
+      }
+      
+      await audio.play()
+    } catch (err) {
+      actions.setIsPlayingAudio(false)
+      actions.setError('Failed to play audio: ' + err.message)
+    }
+  }
+
   return (
     <div className="container-fluid px-1">
       {conversationHistory.length === 0 && (
@@ -368,37 +414,84 @@ function LanguageHelper({ selectedLanguage }) {
       {conversationHistory.length > 0 && (
         <div className="conversation-history mt-3">
           <h6>Conversation History</h6>
-          <div className="border rounded p-2" style={{ maxHeight: '300px', overflowY: 'auto' }}>
-            {conversationHistory.map((msg, index) => (
-              <div
-                key={index}
-                className={`mb-2 ${msg.role === 'user' ? 'text-end' : 'text-start'}`}
-              >
+          <div 
+            ref={conversationHistoryRef}
+            className="border rounded p-2" 
+            style={{ maxHeight: '300px', overflowY: 'auto' }}
+          >
+            {conversationHistory.map((msg, index) => {
+              // Check if this is the most recent assistant message and has audio
+              const isLastAssistantMessage = msg.role === 'assistant' && 
+                index === conversationHistory.length - 1 && 
+                lastAudioUrl
+              
+              return (
                 <div
-                  className={`d-inline-block p-2 rounded small ${
-                    msg.role === 'user' ? 'bg-primary text-white' : 'bg-light border'
-                  }`}
-                  style={{ maxWidth: '85%' }}
+                  key={index}
+                  className={`mb-2 ${msg.role === 'user' ? 'text-end' : 'text-start'}`}
                 >
-                  <strong>{msg.role === 'user' ? 'You' : 'Tutor'}:</strong>
-                  <div 
-                    className="mt-1"
-                    style={{ 
-                      whiteSpace: 'pre-wrap',
-                      wordWrap: 'break-word',
-                      lineHeight: '1.4'
-                    }}
-                    dangerouslySetInnerHTML={{
-                      __html: msg.content
-                        .replace(/\n/g, '<br>')
-                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                        .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                        .replace(/`(.*?)`/g, '<code style="background-color: rgba(255,255,255,0.2); padding: 2px 4px; border-radius: 3px; font-family: monospace;">$1</code>')
-                    }}
-                  />
+                  <div
+                    className={`d-inline-block p-2 rounded small ${
+                      msg.role === 'user' ? 'bg-primary text-white' : 'bg-light border'
+                    }`}
+                    style={{ maxWidth: '85%' }}
+                  >
+                    <div className="d-flex justify-content-between align-items-start">
+                      <div className="flex-grow-1">
+                        <strong>{msg.role === 'user' ? 'You' : 'Tutor'}:</strong>
+                        <div 
+                          className="mt-1"
+                          style={{ 
+                            whiteSpace: 'pre-wrap',
+                            wordWrap: 'break-word',
+                            lineHeight: '1.4'
+                          }}
+                          dangerouslySetInnerHTML={{
+                            __html: msg.content
+                              .replace(/\n/g, '<br>')
+                              .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                              .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                              .replace(/`(.*?)`/g, '<code style="background-color: rgba(255,255,255,0.2); padding: 2px 4px; border-radius: 3px; font-family: monospace;">$1</code>')
+                          }}
+                        />
+                      </div>
+                      
+                      {/* Play button for the most recent assistant message */}
+                      {isLastAssistantMessage && (
+                        <button
+                          className="btn btn-sm btn-outline-success ms-2 flex-shrink-0"
+                          onClick={() => playAudio(lastAudioUrl)}
+                          disabled={isPlayingAudio}
+                          title="Play audio"
+                          style={{ minWidth: '32px', height: '32px' }}
+                        >
+                          <i className={`bi ${isPlayingAudio ? 'bi-volume-up-fill' : 'bi-play-circle'}`}></i>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+            
+            {/* Typing indicator when conversation is loading */}
+            {conversationLoading && (
+              <div className="mb-2 text-start">
+                <div className="d-inline-block p-2 rounded small bg-light border" style={{ maxWidth: '85%' }}>
+                  <strong>Tutor:</strong>
+                  <div className="mt-1 d-flex align-items-center">
+                    <div className="typing-indicator">
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                    </div>
+                    <small className="text-muted ms-2">
+                      {ttsEnabled ? 'Generating response and audio...' : 'Typing...'}
+                    </small>
+                  </div>
                 </div>
               </div>
-            ))}
+            )}
           </div>
           {/* <button
             className="btn btn-sm btn-outline-secondary mt-2 w-100"

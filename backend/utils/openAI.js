@@ -6,8 +6,8 @@ const openai = new OpenAI({
 
 const createTextToSpeech = async ({ text, voice }) => {
   const mp3 = await openai.audio.speech.create({
-    model: 'gpt-4o-mini-tts',
-    voice: voice || 'coral',
+    model: 'tts-1', // Use the standard TTS model
+    voice: voice || 'alloy',
     input: text,
   })
 

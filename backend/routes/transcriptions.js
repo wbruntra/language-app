@@ -15,42 +15,49 @@ const LANGUAGE_CONFIG = {
     nativeName: 'español',
     isoCode: 'es',
     level: 'intermediate Spanish',
+    ttsVoice: 'nova', // Female voice that works well with Spanish
   },
   french: {
     name: 'French',
     nativeName: 'français',
     isoCode: 'fr',
     level: 'intermediate French',
+    ttsVoice: 'alloy', // Neutral voice
   },
   german: {
     name: 'German',
     nativeName: 'Deutsch',
     isoCode: 'de',
     level: 'intermediate German',
+    ttsVoice: 'echo', // Male voice
   },
   italian: {
     name: 'Italian',
     nativeName: 'italiano',
     isoCode: 'it',
     level: 'intermediate Italian',
+    ttsVoice: 'fable', // British accent, good for Italian
   },
   portuguese: {
     name: 'Portuguese',
     nativeName: 'português',
     isoCode: 'pt',
     level: 'intermediate Portuguese',
+    ttsVoice: 'nova', // Female voice
   },
   english: {
     name: 'English',
     nativeName: 'English',
     isoCode: 'en',
     level: 'intermediate English',
+    ttsVoice: 'alloy', // Default neutral voice
   },
   'auto-detect': {
     name: 'Auto-detect',
     nativeName: 'Auto-detect',
     isoCode: null, // Special case for auto-detection
     level: 'auto-detect',
+    ttsVoice: 'alloy', // Default voice for auto-detect
   },
 }
 
@@ -249,7 +256,7 @@ router.post('/transcribe', upload.single('audio'), async (req, res) => {
 
 router.post('/conversation', async (req, res) => {
   try {
-    const { userMessage, conversationHistory = [], language = 'spanish' } = req.body
+    const { userMessage, conversationHistory = [], language = 'spanish', enableTTS = false } = req.body
 
     if (!userMessage) {
       return res.status(400).json({ error: 'userMessage is required' })
@@ -259,6 +266,7 @@ router.post('/conversation', async (req, res) => {
       userMessage,
       historyLength: conversationHistory.length,
       language,
+      enableTTS,
     })
 
     // Get language configuration
@@ -344,11 +352,48 @@ Respond with a JSON object containing:
 
     const responseContent = JSON.parse(completion.choices[0].message.content)
 
+    // Optional: Generate text-to-speech file
+    let audioUrl = null
+    if (enableTTS && responseContent.response) {
+      try {
+        console.log('Generating TTS for response...')
+        const ttsStartTime = Date.now()
+        
+        // Get the appropriate voice for the language
+        const voice = selectedLanguage.ttsVoice || 'alloy'
+        
+        // Generate speech from the response text
+        const audioBuffer = await createTextToSpeech({ 
+          text: responseContent.response, 
+          voice: voice 
+        })
+        
+        // Upload to your storage service (assuming you have uploadData function)
+        const filename = `tts-${Date.now()}-${Math.random().toString(36).substring(7)}.mp3`
+        const uploadResult = await uploadData({
+          dataBuffer: audioBuffer,
+          linodePath: 'tts/', // Store TTS files in a tts/ folder
+          fileName: filename,
+          uploadType: 'tts'
+        })
+        audioUrl = uploadResult.url
+        
+        const ttsEndTime = Date.now()
+        console.log('TTS Generation Time:', (ttsEndTime - ttsStartTime) / 1000, 'seconds')
+        console.log('TTS Audio URL:', audioUrl)
+      } catch (ttsError) {
+        console.error('TTS generation failed:', ttsError)
+        // Don't fail the entire request if TTS fails
+        audioUrl = null
+      }
+    }
+
     res.json({
       correction: responseContent.correction,
       alternative: responseContent.alternative,
       response: responseContent.response,
       explanation: responseContent.explanation,
+      audioUrl: audioUrl,
       conversationHistory: [
         ...conversationHistory,
         { role: 'user', content: userMessage },

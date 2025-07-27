@@ -16,6 +16,9 @@ import {
   setLastExplanation,
   setConversationLoading,
   setCorrectionExpanded,
+  setTtsEnabled,
+  setLastAudioUrl,
+  setIsPlayingAudio,
   setScenarioLoading,
   setCurrentScenario,
   setScenarioSuggestion,
@@ -68,6 +71,11 @@ export const useLanguageHelper = () => {
       setLastExplanation: (payload) => dispatch(setLastExplanation(payload)),
       setConversationLoading: (payload) => dispatch(setConversationLoading(payload)),
       setCorrectionExpanded: (payload) => dispatch(setCorrectionExpanded(payload)),
+
+      // TTS
+      setTtsEnabled: (payload) => dispatch(setTtsEnabled(payload)),
+      setLastAudioUrl: (payload) => dispatch(setLastAudioUrl(payload)),
+      setIsPlayingAudio: (payload) => dispatch(setIsPlayingAudio(payload)),
 
       // Scenario
       setScenarioLoading: (payload) => dispatch(setScenarioLoading(payload)),
