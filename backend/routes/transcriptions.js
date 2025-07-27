@@ -5,6 +5,8 @@ const { OpenAI } = require('openai')
 const ffmpeg = require('fluent-ffmpeg')
 const multer = require('multer')
 const { Readable, PassThrough } = require('stream')
+const { createTextToSpeech } = require('./utils/openAI')
+const { uploadData } = require('./linodeUtils')
 
 // Language configuration - centralized for easy maintenance
 const LANGUAGE_CONFIG = {
@@ -103,7 +105,11 @@ function createAudioFileFromBuffer(buffer, originalMimeType, originalName) {
   // Determine the appropriate filename and MIME type
   if (originalMimeType === 'audio/webm' || originalName?.toLowerCase().endsWith('.webm')) {
     return new File([buffer], 'audio.webm', { type: 'audio/webm' })
-  } else if (originalMimeType === 'audio/mpeg' || originalMimeType === 'audio/mp3' || originalName?.toLowerCase().endsWith('.mp3')) {
+  } else if (
+    originalMimeType === 'audio/mpeg' ||
+    originalMimeType === 'audio/mp3' ||
+    originalName?.toLowerCase().endsWith('.mp3')
+  ) {
     return new File([buffer], 'audio.mp3', { type: 'audio/mpeg' })
   } else {
     // Default to webm for unknown types if we're trying direct approach
@@ -129,10 +135,13 @@ router.post('/transcribe', upload.single('audio'), async (req, res) => {
     const isoLanguageCode = languageConfig.isoCode
 
     // Determine if we should try WebM direct or convert to MP3
-    const isWebM = audioFile.mimetype === 'audio/webm' || audioFile.originalname?.toLowerCase().endsWith('.webm')
-    const isMp3 = audioFile.mimetype === 'audio/mpeg' || 
-                  audioFile.mimetype === 'audio/mp3' || 
-                  audioFile.originalname?.toLowerCase().endsWith('.mp3')
+    const isWebM =
+      audioFile.mimetype === 'audio/webm' ||
+      audioFile.originalname?.toLowerCase().endsWith('.webm')
+    const isMp3 =
+      audioFile.mimetype === 'audio/mpeg' ||
+      audioFile.mimetype === 'audio/mp3' ||
+      audioFile.originalname?.toLowerCase().endsWith('.mp3')
 
     const shouldTryDirectWebM = AUDIO_CONFIG.TRY_WEBM_DIRECT && isWebM
 
@@ -141,7 +150,11 @@ router.post('/transcribe', upload.single('audio'), async (req, res) => {
       mimetype: audioFile.mimetype,
       originalname: audioFile.originalname,
       language,
-      processingMode: shouldTryDirectWebM ? 'WebM Direct' : (isMp3 ? 'MP3 Direct' : 'Convert to MP3')
+      processingMode: shouldTryDirectWebM
+        ? 'WebM Direct'
+        : isMp3
+        ? 'MP3 Direct'
+        : 'Convert to MP3',
     })
 
     let finalBuffer = audioFile.buffer
@@ -167,11 +180,15 @@ router.post('/transcribe', upload.single('audio'), async (req, res) => {
     }
 
     const startTime = Date.now()
-    
+
     // Create the appropriate File object
     let audioFileForAPI
     if (shouldTryDirectWebM) {
-      audioFileForAPI = createAudioFileFromBuffer(finalBuffer, audioFile.mimetype, audioFile.originalname)
+      audioFileForAPI = createAudioFileFromBuffer(
+        finalBuffer,
+        audioFile.mimetype,
+        audioFile.originalname,
+      )
     } else {
       audioFileForAPI = createFileFromBuffer(finalBuffer, finalFilename, finalMimeType)
     }
@@ -192,23 +209,26 @@ router.post('/transcribe', upload.single('audio'), async (req, res) => {
       transcription = await openai.audio.transcriptions.create(transcriptionRequest)
     } catch (error) {
       // If WebM direct failed and we were trying that approach, fall back to MP3 conversion
-      if (shouldTryDirectWebM && (error.message?.includes('format') || error.message?.includes('audio'))) {
+      if (
+        shouldTryDirectWebM &&
+        (error.message?.includes('format') || error.message?.includes('audio'))
+      ) {
         console.log('WebM direct approach failed, falling back to MP3 conversion...')
         console.log('WebM error:', error.message)
-        
+
         // Convert to MP3 as fallback
         const mp3Buffer = await convertToMp3Buffer(audioFile.buffer, audioFile.mimetype)
         const mp3File = createFileFromBuffer(mp3Buffer, 'audio.mp3', 'audio/mpeg')
-        
+
         const fallbackRequest = {
           file: mp3File,
           model: 'gpt-4o-mini-transcribe',
         }
-        
+
         if (isoLanguageCode !== null) {
           fallbackRequest.language = isoLanguageCode
         }
-        
+
         console.log('Retrying with MP3 conversion...')
         transcription = await openai.audio.transcriptions.create(fallbackRequest)
       } else {
@@ -451,11 +471,11 @@ Respond with a JSON object containing:
 // NEW: Follow-up question route
 router.post('/followup', async (req, res) => {
   try {
-    const { 
-      userQuestion, 
+    const {
+      userQuestion,
       correctionContext = {},
       followupHistory = [],
-      language = 'spanish' 
+      language = 'spanish',
     } = req.body
 
     if (!userQuestion) {
@@ -475,10 +495,14 @@ router.post('/followup', async (req, res) => {
 
     // Build the context from the correction information
     let contextText = `You are a helpful language tutor. A student is asking a follow-up question about a recent language correction/feedback.`
-    
-    if (correctionContext.correction || correctionContext.alternative || correctionContext.explanation) {
+
+    if (
+      correctionContext.correction ||
+      correctionContext.alternative ||
+      correctionContext.explanation
+    ) {
       contextText += `\n\nContext of the recent correction for ${languageName} learning:`
-      
+
       if (correctionContext.original) {
         contextText += `\n- Original student message: "${correctionContext.original}"`
       }
