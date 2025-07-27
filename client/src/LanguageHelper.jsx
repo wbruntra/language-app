@@ -114,12 +114,15 @@ function LanguageHelper({ selectedLanguage }) {
   // NEW: Follow-up question functions
   const openFollowupModal = () => {
     actions.setShowFollowupModal(true)
-    actions.clearFollowup()
   }
 
   const closeFollowupModal = () => {
     actions.setShowFollowupModal(false)
-    actions.clearFollowup()
+    // Clear the follow-up question and transcription when closing
+    actions.setFollowupQuestion('')
+    actions.setFollowupTranscription('')
+    actions.setIsFollowupRecording(false)
+    // Keep the followup history - don't clear it
   }
 
   const sendFollowupQuestion = async () => {
@@ -377,7 +380,22 @@ function LanguageHelper({ selectedLanguage }) {
                   }`}
                   style={{ maxWidth: '85%' }}
                 >
-                  <strong>{msg.role === 'user' ? 'You' : 'Tutor'}:</strong> {msg.content}
+                  <strong>{msg.role === 'user' ? 'You' : 'Tutor'}:</strong>
+                  <div 
+                    className="mt-1"
+                    style={{ 
+                      whiteSpace: 'pre-wrap',
+                      wordWrap: 'break-word',
+                      lineHeight: '1.4'
+                    }}
+                    dangerouslySetInnerHTML={{
+                      __html: msg.content
+                        .replace(/\n/g, '<br>')
+                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                        .replace(/`(.*?)`/g, '<code style="background-color: rgba(255,255,255,0.2); padding: 2px 4px; border-radius: 3px; font-family: monospace;">$1</code>')
+                    }}
+                  />
                 </div>
               </div>
             ))}
@@ -429,7 +447,22 @@ function LanguageHelper({ selectedLanguage }) {
                       {followupHistory.map((msg, index) => (
                         <div key={index} className="mb-2">
                           <div className={`small ${msg.role === 'user' ? 'text-primary fw-bold' : 'text-dark'}`}>
-                            <strong>{msg.role === 'user' ? 'You' : 'Tutor'}:</strong> {msg.content}
+                            <strong>{msg.role === 'user' ? 'You' : 'Tutor'}:</strong>
+                            <div 
+                              className="mt-1"
+                              style={{ 
+                                whiteSpace: 'pre-wrap',
+                                wordWrap: 'break-word',
+                                lineHeight: '1.4'
+                              }}
+                              dangerouslySetInnerHTML={{
+                                __html: msg.content
+                                  .replace(/\n/g, '<br>')
+                                  .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                                  .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                                  .replace(/`(.*?)`/g, '<code style="background-color: #f1f3f4; padding: 2px 4px; border-radius: 3px; font-family: monospace;">$1</code>')
+                              }}
+                            />
                           </div>
                         </div>
                       ))}
@@ -437,45 +470,97 @@ function LanguageHelper({ selectedLanguage }) {
                   </div>
                 )}
 
-                {/* Question input */}
+                {/* Question input with unified design */}
                 <div className="mb-3">
                   <label className="form-label small">Your Follow-up Question:</label>
-                  <textarea
-                    className="form-control"
-                    rows={3}
-                    value={followupTranscription || followupQuestion}
-                    onChange={(e) => actions.setFollowupQuestion(e.target.value)}
-                    placeholder="Type your question here, or use the microphone to record..."
-                    disabled={followupLoading || isFollowupRecording}
-                  />
-                </div>
+                  
+                  {/* Unified input container with rounded design */}
+                  <div className="position-relative">
+                    {/* Top section - Textarea */}
+                    <div className="bg-white border" style={{ borderRadius: '0.375rem 0.375rem 0 0', borderBottom: 'none' }}>
+                      <textarea
+                        className="form-control border-0"
+                        style={{ 
+                          borderRadius: '0.375rem 0.375rem 0 0',
+                          resize: 'none',
+                          boxShadow: 'none'
+                        }}
+                        rows={3}
+                        value={followupTranscription || followupQuestion}
+                        onChange={(e) => actions.setFollowupQuestion(e.target.value)}
+                        placeholder="Type your question here, or use the microphone to record..."
+                        disabled={followupLoading || isFollowupRecording}
+                      />
+                    </div>
 
-                {/* Recording controls for follow-up */}
-                <div className="mb-3">
-                  <div className="d-flex gap-2 align-items-center">
-                    <button
-                      className={`btn btn-sm ${isFollowupRecording ? 'btn-danger' : 'btn-outline-primary'}`}
-                      onClick={() => {
-                        shouldTranscribeRef.current = true
-                        isFollowupRecording ? stopFollowupRecording() : startFollowupRecording()
-                      }}
-                      disabled={followupLoading}
+                    {/* Bottom section - Controls */}
+                    <div 
+                      className="bg-light border d-flex align-items-center justify-content-between px-3 py-2"
+                      style={{ borderRadius: '0 0 0.375rem 0.375rem' }}
                     >
-                      {isFollowupRecording ? 'Stop Recording' : 'Record Question'}
-                    </button>
-                    
-                    {isFollowupRecording && (
-                      <button
-                        className="btn btn-sm btn-warning"
-                        onClick={cancelFollowupRecording}
-                      >
-                        Cancel
-                      </button>
-                    )}
-                    
-                    {isFollowupRecording && (
-                      <small className="text-muted">Recording... (auto-detecting language)</small>
-                    )}
+                      <div className="d-flex align-items-center gap-2 flex-grow-1">
+                        {followupLoading && (
+                          <small className="text-muted">
+                            <span className="spinner-border spinner-border-sm me-1" role="status"></span>
+                            Transcribing...
+                          </small>
+                        )}
+                        {!followupLoading && !isFollowupRecording && (
+                          <small className="text-muted">
+                            Auto-detecting language
+                          </small>
+                        )}
+                        {isFollowupRecording && (
+                          <small className="text-muted">Recording... (auto-detecting language)</small>
+                        )}
+                      </div>
+
+                      <div className="d-flex align-items-center gap-2">
+                        {/* Recording controls */}
+                        {!isFollowupRecording ? (
+                          <button
+                            type="button"
+                            className="btn btn-outline-primary btn-sm rounded-circle d-flex align-items-center justify-content-center"
+                            style={{ width: '40px', height: '40px' }}
+                            onClick={() => {
+                              shouldTranscribeRef.current = true
+                              startFollowupRecording()
+                            }}
+                            disabled={followupLoading}
+                            title="Start recording"
+                          >
+                            <i className="bi bi-mic"></i>
+                          </button>
+                        ) : (
+                          <>
+                            {/* Stop/Send recording */}
+                            <button
+                              type="button"
+                              className="btn btn-success btn-sm rounded-circle d-flex align-items-center justify-content-center"
+                              style={{ width: '40px', height: '40px' }}
+                              onClick={() => {
+                                shouldTranscribeRef.current = true
+                                stopFollowupRecording()
+                              }}
+                              title="Stop and transcribe recording"
+                            >
+                              <i className="bi bi-check-lg"></i>
+                            </button>
+                            
+                            {/* Cancel recording */}
+                            <button
+                              type="button"
+                              className="btn btn-outline-danger btn-sm rounded-circle d-flex align-items-center justify-content-center"
+                              style={{ width: '40px', height: '40px' }}
+                              onClick={cancelFollowupRecording}
+                              title="Cancel recording"
+                            >
+                              <i className="bi bi-x-lg"></i>
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
