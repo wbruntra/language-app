@@ -27,4 +27,12 @@ module.exports = {
     },
     useNullAsDefault: true, // SQLite requires this
   },
+  test: {
+    client: 'sqlite3',
+    connection: {
+      filename: path.join(__dirname, 'test.sqlite3'),
+    },
+    useNullAsDefault: true, // SQLite requires this
+  },
+
 }
