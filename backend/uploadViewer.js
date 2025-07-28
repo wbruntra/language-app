@@ -1,8 +1,16 @@
 const db = require('./db_connection')
 
 const run = async () => {
-  const uploads = await db('uploads').select('*')
-  console.log('All uploads:', uploads)
+  // const uploads = await db('user_info').select('*')
+  // console.log('All uploads:', uploads)
+
+  await db('user_info')
+    .update({
+      first_name: 'William',
+    })
+    .where({
+      email: 'bill@test.com',
+    })
 }
 
 run()

@@ -1,5 +1,5 @@
 exports.up = function (knex) {
-  return knex.schema.createTable('conversation_info', function (table) {
+  return knex.schema.createTable('user_vocab_info', function (table) {
     table.string('id').primary()
     table.string('word').notNullable()
     table.string('language')
@@ -13,5 +13,5 @@ exports.up = function (knex) {
 }
 
 exports.down = function (knex) {
-  return knex.schema.dropTable('conversation_info')
+  return knex.schema.dropTable('user_vocab_info')
 }

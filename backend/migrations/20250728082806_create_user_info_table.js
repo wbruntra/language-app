@@ -8,7 +8,6 @@ exports.up = function (knex) {
     table.string('email', 255).notNullable().unique()
     table.string('phone', 24).nullable()
     table.string('password', 255).notNullable()
-    table.string('user_type', 24).notNullable()
     table.string('first_name')
     table.string('last_name')
     table.string('nickname')

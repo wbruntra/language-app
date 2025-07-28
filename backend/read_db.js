@@ -3,115 +3,56 @@ const config = require('./config')
 const fs = require('fs')
 const path = require('path')
 
-// Function to get table DDL using PostgreSQL information schema
+// Function to get table DDL using SQLite PRAGMA commands
 const getTableDdl = async (tableName) => {
   try {
-    // Get column information
-    const columnsResult = await knex.raw(
-      `
-      SELECT 
-        column_name,
-        data_type,
-        character_maximum_length,
-        numeric_precision,
-        numeric_scale,
-        is_nullable,
-        column_default,
-        ordinal_position
-      FROM information_schema.columns
-      WHERE table_name = ? AND table_schema = 'public'
-      ORDER BY ordinal_position
-    `,
-      [tableName],
-    )
+    // Get column information using PRAGMA table_info
+    const columnsResult = await knex.raw(`PRAGMA table_info(${tableName})`)
+    
+    // Get foreign key information using PRAGMA foreign_key_list
+    const foreignKeysResult = await knex.raw(`PRAGMA foreign_key_list(${tableName})`)
+    
+    // Get index information using PRAGMA index_list and index_info
+    const indexListResult = await knex.raw(`PRAGMA index_list(${tableName})`)
+    
+    const columns = columnsResult
+    const foreignKeys = foreignKeysResult
+    const indexes = indexListResult
 
-    // Get primary key information
-    const primaryKeyResult = await knex.raw(
-      `
-      SELECT kcu.column_name
-      FROM information_schema.table_constraints tc
-      JOIN information_schema.key_column_usage kcu 
-        ON tc.constraint_name = kcu.constraint_name
-        AND tc.table_schema = kcu.table_schema
-      WHERE tc.constraint_type = 'PRIMARY KEY'
-        AND tc.table_name = ? 
-        AND tc.table_schema = 'public'
-      ORDER BY kcu.ordinal_position
-    `,
-      [tableName],
-    )
-
-    // Get foreign key information
-    const foreignKeysResult = await knex.raw(
-      `
-      SELECT 
-        kcu.column_name,
-        ccu.table_name AS referenced_table_name,
-        ccu.column_name AS referenced_column_name,
-        tc.constraint_name
-      FROM information_schema.table_constraints AS tc 
-      JOIN information_schema.key_column_usage AS kcu
-        ON tc.constraint_name = kcu.constraint_name
-        AND tc.table_schema = kcu.table_schema
-      JOIN information_schema.constraint_column_usage AS ccu
-        ON ccu.constraint_name = tc.constraint_name
-        AND ccu.table_schema = tc.table_schema
-      WHERE tc.constraint_type = 'FOREIGN KEY' 
-        AND tc.table_name = ?
-        AND tc.table_schema = 'public'
-    `,
-      [tableName],
-    )
-
-    // Get unique constraints
-    const uniqueConstraintsResult = await knex.raw(
-      `
-      SELECT 
-        tc.constraint_name,
-        string_agg(kcu.column_name, ', ' ORDER BY kcu.ordinal_position) as columns
-      FROM information_schema.table_constraints tc
-      JOIN information_schema.key_column_usage kcu 
-        ON tc.constraint_name = kcu.constraint_name
-        AND tc.table_schema = kcu.table_schema
-      WHERE tc.constraint_type = 'UNIQUE'
-        AND tc.table_name = ? 
-        AND tc.table_schema = 'public'
-      GROUP BY tc.constraint_name
-    `,
-      [tableName],
-    )
-
-    const columns = columnsResult.rows
-    const primaryKeys = primaryKeyResult.rows.map((row) => row.column_name)
-    const foreignKeys = foreignKeysResult.rows
-    const uniqueConstraints = uniqueConstraintsResult.rows
+    // Process primary keys and unique constraints from column info and indexes
+    const primaryKeys = columns.filter(col => col.pk > 0).sort((a, b) => a.pk - b.pk).map(col => col.name)
+    
+    // Get unique constraints from indexes
+    const uniqueConstraints = []
+    for (const index of indexes) {
+      if (index.unique && !index.name.startsWith('sqlite_autoindex')) {
+        const indexInfoResult = await knex.raw(`PRAGMA index_info(${index.name})`)
+        const columnNames = indexInfoResult.map(info => info.name).join(', ')
+        uniqueConstraints.push({
+          constraint_name: index.name,
+          columns: columnNames
+        })
+      }
+    }
 
     // Build CREATE TABLE statement
     let ddl = `CREATE TABLE ${tableName} (\n`
 
     // Add columns
     const columnDefinitions = columns.map((col) => {
-      let def = `    ${col.column_name} `
+      let def = `    ${col.name} `
 
-      // Add data type
-      if (col.character_maximum_length) {
-        def += `${col.data_type}(${col.character_maximum_length})`
-      } else if (col.numeric_precision && col.numeric_scale) {
-        def += `${col.data_type}(${col.numeric_precision},${col.numeric_scale})`
-      } else if (col.numeric_precision) {
-        def += `${col.data_type}(${col.numeric_precision})`
-      } else {
-        def += col.data_type
-      }
+      // Add data type (SQLite uses simpler type system)
+      def += col.type
 
       // Add NOT NULL
-      if (col.is_nullable === 'NO') {
+      if (col.notnull === 1) {
         def += ' NOT NULL'
       }
 
       // Add default value
-      if (col.column_default) {
-        def += ` DEFAULT ${col.column_default}`
+      if (col.dflt_value !== null) {
+        def += ` DEFAULT ${col.dflt_value}`
       }
 
       return def
@@ -131,7 +72,7 @@ const getTableDdl = async (tableName) => {
 
     // Add foreign key constraints
     foreignKeys.forEach((fk) => {
-      ddl += `,\n    CONSTRAINT ${fk.constraint_name} FOREIGN KEY (${fk.column_name}) REFERENCES ${fk.referenced_table_name}(${fk.referenced_column_name})`
+      ddl += `,\n    CONSTRAINT fk_${tableName}_${fk.from}_${fk.table}_${fk.to} FOREIGN KEY (${fk.from}) REFERENCES ${fk.table}(${fk.to})`
     })
 
     ddl += '\n);'
@@ -144,54 +85,53 @@ const getTableDdl = async (tableName) => {
 
 // Function to get tables that reference the current table
 const getReferencedBy = async (tableName) => {
-  const result = await knex.raw(
-    `
-    SELECT 
-      tc.table_name, 
-      kcu.column_name, 
-      tc.constraint_name
-    FROM 
-      information_schema.table_constraints AS tc 
-      JOIN information_schema.key_column_usage AS kcu
-        ON tc.constraint_name = kcu.constraint_name
-        AND tc.table_schema = kcu.table_schema
-      JOIN information_schema.constraint_column_usage AS ccu
-        ON ccu.constraint_name = tc.constraint_name
-        AND ccu.table_schema = tc.table_schema
-    WHERE tc.constraint_type = 'FOREIGN KEY' 
-      AND ccu.table_name = ?
-      AND tc.table_schema = 'public'
-  `,
-    [tableName],
-  )
-
-  return result.rows || []
+  try {
+    // Get all table names first
+    const tablesResult = await knex.raw(`
+      SELECT name FROM sqlite_master 
+      WHERE type='table' AND name NOT LIKE 'sqlite_%'
+    `)
+    
+    const referencedBy = []
+    
+    // Check each table for foreign keys that reference our table
+    for (const table of tablesResult) {
+      const foreignKeysResult = await knex.raw(`PRAGMA foreign_key_list(${table.name})`)
+      
+      for (const fk of foreignKeysResult) {
+        if (fk.table === tableName) {
+          referencedBy.push({
+            table_name: table.name,
+            column_name: fk.from,
+            constraint_name: `fk_${table.name}_${fk.from}_${fk.table}_${fk.to}`
+          })
+        }
+      }
+    }
+    
+    return referencedBy
+  } catch (error) {
+    console.error(`Error getting referenced by for ${tableName}:`, error)
+    return []
+  }
 }
 
 // Function to get tables that this table references
 const getReferences = async (tableName) => {
-  const result = await knex.raw(
-    `
-    SELECT 
-      ccu.table_name AS referenced_table_name, 
-      kcu.column_name, 
-      tc.constraint_name
-    FROM 
-      information_schema.table_constraints AS tc 
-      JOIN information_schema.key_column_usage AS kcu
-        ON tc.constraint_name = kcu.constraint_name
-        AND tc.table_schema = kcu.table_schema
-      JOIN information_schema.constraint_column_usage AS ccu
-        ON ccu.constraint_name = tc.constraint_name
-        AND ccu.table_schema = tc.table_schema
-    WHERE tc.constraint_type = 'FOREIGN KEY' 
-      AND tc.table_name = ?
-      AND tc.table_schema = 'public'
-  `,
-    [tableName],
-  )
-
-  return result.rows || []
+  try {
+    const foreignKeysResult = await knex.raw(`PRAGMA foreign_key_list(${tableName})`)
+    
+    const references = foreignKeysResult.map(fk => ({
+      referenced_table_name: fk.table,
+      column_name: fk.from,
+      constraint_name: `fk_${tableName}_${fk.from}_${fk.table}_${fk.to}`
+    }))
+    
+    return references
+  } catch (error) {
+    console.error(`Error getting references for ${tableName}:`, error)
+    return []
+  }
 }
 
 const hashLogic = (tableName) => {
@@ -329,15 +269,14 @@ const run = async () => {
     fs.mkdirSync(tablesDir)
   }
 
-  // Get a list of all the tables in the database using PostgreSQL syntax
+  // Get a list of all the tables in the database using SQLite syntax
   const db_tables = await knex.raw(`
-    SELECT table_name 
-    FROM information_schema.tables 
-    WHERE table_schema = 'public' 
-    AND table_type = 'BASE TABLE'
+    SELECT name as table_name 
+    FROM sqlite_master 
+    WHERE type='table' AND name NOT LIKE 'sqlite_%'
   `)
 
-  const tableNames = db_tables.rows.map((row) => row.table_name)
+  const tableNames = db_tables.map((row) => row.table_name)
 
   console.log('Table names:', tableNames)
 

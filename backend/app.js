@@ -1,3 +1,5 @@
+require('module-alias/register') // Initialize module-alias
+
 const express = require('express')
 const cors = require('cors')
 const logger = require('morgan')
@@ -25,16 +27,20 @@ app.use(
 )
 
 const { router: authRouter, requireAuth } = expressAuth.createAuth({
-  password: secrets.password,
+  password: secrets.authorizationCode,
 })
 
-app.use('/api/auth', authRouter)
+app.use('/api/auth', require('./routes/users'))
 
 const transcriptionsRouter = require('./routes/transcriptions')
 app.use('/api', requireAuth, transcriptionsRouter)
 
-// Start server
-const PORT = process.env.PORT || 13010
-app.listen(PORT, () => {
-  console.log(`Backend running on http://localhost:${PORT}`)
+app.use(function (req, res, next) {
+  res.status(404).json({ error: 'Not Found' })
 })
+
+// Error handler middleware
+const errorHandler = require('./middleware/errorHandler')
+app.use(errorHandler)
+
+module.exports = app

@@ -1,4 +1,4 @@
-import { useUser } from '../contexts/UserContext'
+import { useUser } from '../hooks/useUser'
 import Login from '../components/Login'
 import LanguageHelper, { LanguageSelector } from '../LanguageHelper'
 import { useEffect } from 'react'
@@ -7,7 +7,7 @@ import { useSelector, useDispatch } from 'react-redux'
 import { setTtsEnabled } from '../store/languageHelperSlice'
 
 function AppContent() {
-  const { isAuthenticated, loading, logout } = useUser()
+  const { user, isAuthenticated, loading, logout } = useUser()
   const { selectedLanguage, currentLanguage, setSelectedLanguage } = useLanguageConfig()
   const dispatch = useDispatch()
   const ttsEnabled = useSelector(state => state.languageHelper.ttsEnabled)
@@ -58,10 +58,17 @@ function AppContent() {
 
   return (
     <div>
-      <nav className="navbar navbar-light bg-light py-2 mb-2 sticky-top">
+      <nav id="logged-in-navbar" className="navbar navbar-light bg-light py-2 mb-2 sticky-top">
         <div className="container-fluid px-3">
-          <span className="navbar-brand mb-0 h6 d-none d-sm-block">{currentLanguage.name} Language Helper</span>
-          <span className="navbar-brand mb-0 small d-block d-sm-none">{currentLanguage.name} Helper</span>
+          <div className="navbar-brand mb-0 d-flex flex-column">
+            <span className="h6 d-none d-sm-block">{currentLanguage.name} Language Helper</span>
+            <span className="small d-block d-sm-none">{currentLanguage.name} Helper</span>
+            {user?.first_name && (
+              <small className="text-muted" style={{ fontSize: '0.8rem', lineHeight: 1 }}>
+                Welcome back, {user.first_name}!
+              </small>
+            )}
+          </div>
           <div className="d-flex align-items-center gap-2">
             <button
               className={`btn btn-sm ${ttsEnabled ? 'btn-primary' : 'btn-outline-secondary'}`}
