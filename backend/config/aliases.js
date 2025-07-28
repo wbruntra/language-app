@@ -17,6 +17,7 @@ const bareAliases = {
   '@db_connection': 'db_connection.js',
   '@secrets': 'secrets.js',
   '@lib': 'lib',
+  '@data': 'data',
 }
 
 const aliasesRelativePath = Object.fromEntries(

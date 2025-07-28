@@ -5,9 +5,10 @@ const { OpenAI } = require('openai')
 const ffmpeg = require('fluent-ffmpeg')
 const multer = require('multer')
 const { Readable, PassThrough } = require('stream')
-const { createTextToSpeech } = require('../utils/openAI')
+const { createTextToSpeech, calculateCost } = require('../utils/openAI/index')
 const { uploadData } = require('../linodeUtils')
 const config = require('@config')
+const AiUsage = require('../tables/ai_usage')
 
 // Language configuration - centralized for easy maintenance
 const LANGUAGE_CONFIG = config.languages
@@ -31,6 +32,52 @@ const upload = multer({
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
+
+// Helper function to record AI usage
+async function recordAiUsage(userId, usage, metadata = {}) {
+  if (!userId || !usage) {
+    console.warn('Cannot record AI usage: missing userId or usage data')
+    return
+  }
+
+  try {
+    // Calculate cost if model is provided in metadata
+    let costData = null
+    if (metadata.model) {
+      costData = calculateCost(metadata.model, usage, metadata)
+    }
+
+    // Add cost information to metadata
+    const enrichedMetadata = {
+      ...metadata,
+      ...(costData && {
+        cost: costData.totalCost,
+        cost_breakdown: costData.breakdown,
+        token_breakdown: costData.tokenBreakdown,
+      }),
+    }
+
+    await AiUsage.query().insert({
+      input_tokens: usage.prompt_tokens || usage.input_tokens || 0,
+      cached_input_tokens: usage.prompt_tokens_details?.cached_tokens || 0,
+      output_tokens: usage.completion_tokens || usage.output_tokens || 0,
+      user_id: userId,
+      metadata: enrichedMetadata,
+    })
+
+    console.log('AI Usage recorded:', {
+      userId,
+      input_tokens: usage.prompt_tokens || usage.input_tokens || 0,
+      cached_input_tokens: usage.prompt_tokens_details?.cached_tokens || 0,
+      output_tokens: usage.completion_tokens || usage.output_tokens || 0,
+      total_tokens: usage.total_tokens || 0,
+      ...(costData && { estimated_cost: `$${costData.totalCost}` }),
+    })
+  } catch (error) {
+    console.error('Failed to record AI usage:', error)
+    // Don't throw error to avoid breaking the main request
+  }
+}
 
 // Convert buffer to MP3 buffer
 const convertToMp3Buffer = (inputBuffer) => {
@@ -83,9 +130,14 @@ router.post('/transcribe', upload.single('audio'), async (req, res) => {
   try {
     const audioFile = req.file
     const { language = 'spanish' } = req.body
+    const userId = req.session?.user_id
 
     if (!audioFile) {
       return res.status(400).json({ error: 'No audio file uploaded' })
+    }
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' })
     }
 
     // Get language configuration
@@ -198,6 +250,47 @@ router.post('/transcribe', upload.single('audio'), async (req, res) => {
     const endTime = Date.now()
     console.log('Transcription Response Time:', (endTime - startTime) / 1000, 'seconds')
 
+    // Record AI usage for transcription
+    // Note: The new transcription API returns usage information with audio tokens
+    if (transcription.usage) {
+      await recordAiUsage(
+        userId,
+        {
+          prompt_tokens: transcription.usage.input_tokens || 0,
+          completion_tokens: transcription.usage.output_tokens || 0,
+          total_tokens: transcription.usage.total_tokens || 0,
+        },
+        {
+          model: 'gpt-4o-mini-transcribe',
+          operation: 'transcription',
+          language: language,
+          file_size_bytes: audioFile.size,
+          audio_format: finalMimeType,
+          audio_tokens: transcription.usage.input_token_details?.audio_tokens || 0,
+          text_tokens: transcription.usage.input_token_details?.text_tokens || 0,
+        },
+      )
+    } else {
+      // Fallback for older API versions or if usage is not returned
+      const estimatedTokens = transcription.text?.split(' ').length || 0
+      await recordAiUsage(
+        userId,
+        {
+          prompt_tokens: 0,
+          completion_tokens: estimatedTokens,
+          total_tokens: estimatedTokens,
+        },
+        {
+          model: 'gpt-4o-mini-transcribe',
+          operation: 'transcription',
+          language: language,
+          file_size_bytes: audioFile.size,
+          audio_format: finalMimeType,
+          estimated_tokens: true,
+        },
+      )
+    }
+
     res.send(transcription.text)
   } catch (error) {
     console.error('Transcription error:', error)
@@ -207,10 +300,20 @@ router.post('/transcribe', upload.single('audio'), async (req, res) => {
 
 router.post('/conversation', async (req, res) => {
   try {
-    const { userMessage, conversationHistory = [], language = 'spanish', enableTTS = false } = req.body
+    const {
+      userMessage,
+      conversationHistory = [],
+      language = 'spanish',
+      enableTTS = false,
+    } = req.body
+    const userId = req.session?.user_id
 
     if (!userMessage) {
       return res.status(400).json({ error: 'userMessage is required' })
+    }
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' })
     }
 
     console.log('Received conversation request:', {
@@ -303,32 +406,62 @@ Respond with a JSON object containing:
 
     const responseContent = JSON.parse(completion.choices[0].message.content)
 
+    // Record AI usage for conversation
+    if (completion.usage) {
+      await recordAiUsage(userId, completion.usage, {
+        model: completion.model || 'gpt-4o-2024-08-06',
+        operation: 'conversation',
+        language: language,
+        conversation_history_length: conversationHistory.length,
+        response_format: 'json_schema',
+      })
+    }
+
     // Optional: Generate text-to-speech file
     let audioUrl = null
     if (enableTTS && responseContent.response) {
       try {
         console.log('Generating TTS for response...')
         const ttsStartTime = Date.now()
-        
+
         // Get the appropriate voice for the language
         const voice = selectedLanguage.ttsVoice || 'alloy'
-        
+
         // Generate speech from the response text
-        const audioBuffer = await createTextToSpeech({ 
-          text: responseContent.response, 
-          voice: voice 
+        const audioBuffer = await createTextToSpeech({
+          text: responseContent.response,
+          voice: voice,
         })
-        
+
+        // Record TTS usage (TTS is priced per character, not tokens)
+        const characterCount = responseContent.response.length
+        await recordAiUsage(
+          userId,
+          {
+            prompt_tokens: 0,
+            completion_tokens: 0, // TTS doesn't have traditional tokens
+            total_tokens: 0,
+          },
+          {
+            model: 'gpt-4o-mini-tts', // Assuming default TTS model
+            operation: 'text_to_speech',
+            language: language,
+            voice: voice,
+            character_count: characterCount,
+            text_length: characterCount,
+          },
+        )
+
         // Upload to your storage service (assuming you have uploadData function)
         const filename = `tts-${Date.now()}-${Math.random().toString(36).substring(7)}.mp3`
         const uploadResult = await uploadData({
           dataBuffer: audioBuffer,
           linodePath: 'tts/', // Store TTS files in a tts/ folder
           fileName: filename,
-          uploadType: 'tts'
+          uploadType: 'tts',
         })
         audioUrl = uploadResult.url
-        
+
         const ttsEndTime = Date.now()
         console.log('TTS Generation Time:', (ttsEndTime - ttsStartTime) / 1000, 'seconds')
         console.log('TTS Audio URL:', audioUrl)
@@ -364,6 +497,11 @@ Respond with a JSON object containing:
 router.post('/scenario', async (req, res) => {
   try {
     const { suggestion = '', language = 'spanish' } = req.body
+    const userId = req.session?.user_id
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' })
+    }
 
     console.log('Received scenario request:', { suggestion, language })
 
@@ -448,6 +586,17 @@ Respond with a JSON object containing:
 
     const responseContent = JSON.parse(completion.choices[0].message.content)
 
+    // Record AI usage for scenario generation
+    if (completion.usage) {
+      await recordAiUsage(userId, completion.usage, {
+        model: completion.model || 'gpt-4o-2024-08-06',
+        operation: 'scenario_generation',
+        language: language,
+        suggestion_provided: !!suggestion,
+        response_format: 'json_schema',
+      })
+    }
+
     res.json({
       title: responseContent.title,
       context: responseContent.context,
@@ -473,9 +622,14 @@ router.post('/followup', async (req, res) => {
       followupHistory = [],
       language = 'spanish',
     } = req.body
+    const userId = req.session?.user_id
 
     if (!userQuestion) {
       return res.status(400).json({ error: 'userQuestion is required' })
+    }
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' })
     }
 
     console.log('Received follow-up request:', {
@@ -550,6 +704,17 @@ router.post('/followup', async (req, res) => {
     console.log('Follow-up Response Time:', (endTime - startTime) / 1000, 'seconds')
 
     const responseContent = completion.choices[0].message.content
+
+    // Record AI usage for follow-up
+    if (completion.usage) {
+      await recordAiUsage(userId, completion.usage, {
+        model: completion.model || 'gpt-4o-2024-08-06',
+        operation: 'followup_question',
+        language: language,
+        followup_history_length: followupHistory.length,
+        has_correction_context: Object.keys(correctionContext).length > 0,
+      })
+    }
 
     res.json({
       response: responseContent,

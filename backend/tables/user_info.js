@@ -23,6 +23,7 @@ CREATE TABLE user_info (
 -- Referenced by:
 -- * conversation_info.user_id (fk_conversation_info_user_id_user_info_id)
 -- * user_vocab_info.user_id (fk_user_vocab_info_user_id_user_info_id)
+-- * ai_usage.user_id (fk_ai_usage_user_id_user_info_id)
  * END_DDL
  */
 const { Model } = require('objection')
@@ -66,6 +67,7 @@ class UserInfo extends Model {
   static get relationMappings() {
     const ConversationInfo = require('./conversation_info')
     const UserVocabInfo = require('./user_vocab_info')
+    const AiUsage = require('./ai_usage')
 
     return {
       conversations: {
@@ -82,6 +84,14 @@ class UserInfo extends Model {
         join: {
           from: 'user_info.id',
           to: 'user_vocab_info.user_id',
+        },
+      },
+      aiUsage: {
+        relation: Model.HasManyRelation,
+        modelClass: AiUsage,
+        join: {
+          from: 'user_info.id',
+          to: 'ai_usage.user_id',
         },
       },
     }

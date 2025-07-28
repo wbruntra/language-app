@@ -4,9 +4,10 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
 
+
 const createTextToSpeech = async ({ text, voice }) => {
   const mp3 = await openai.audio.speech.create({
-    model: 'tts-1', // Use the standard TTS model
+    model: 'gpt-4o-mini-tts', 
     voice: voice || 'alloy',
     input: text,
   })
@@ -16,4 +17,4 @@ const createTextToSpeech = async ({ text, voice }) => {
   return buffer
 }
 
-module.exports = { createTextToSpeech }
+module.exports = createTextToSpeech
