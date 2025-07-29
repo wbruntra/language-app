@@ -48,7 +48,7 @@ Using existing `taboo_words.json` format:
 ### 1. New Utility Module
 **File**: `backend/utils/openAI/tabooGameplay.js`
 **Functions**:
-- `translateKeyWords(keyWords, targetLanguage)`
+- `translateKeyWords({ keyWords, mainWord, targetLanguage })`
 - `evaluateDescription(description, keyWords, answerWord)`
 - `generateSampleDescription(answerWord, keyWords, targetLanguage)`
 

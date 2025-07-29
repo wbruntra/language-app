@@ -1,7 +1,8 @@
 exports.up = function (knex) {
   return knex.schema.createTable('taboo_cards', function (table) {
     table.string('id').primary()
-    table.string('answer_word').notNullable() // The word to describe (e.g., "CAR")
+    table.string('answer_word').notNullable()
+    table.string('language').notNullable() // Language of the card (e.g., "en" for English)
     table.json('key_words').notNullable() // Array of key words in English
     table.string('category').defaultTo('general') // Category like "vehicles", "food", etc.
     table.string('difficulty').defaultTo('medium') // easy, medium, hard

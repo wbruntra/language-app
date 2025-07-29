@@ -46,6 +46,7 @@ class TabooCards extends Model {
       properties: {
         id: { type: 'string', maxLength: 255 },
         answer_word: { type: 'string', maxLength: 255 },
+        language: { type: 'string', maxLength: 255, default: 'en' },
         key_words: { type: 'array', items: { type: 'string' } },
         category: { type: ['string', 'null'], maxLength: 255, default: 'general' },
         difficulty: { type: ['string', 'null'], enum: ['easy', 'medium', 'hard'], default: 'medium' },

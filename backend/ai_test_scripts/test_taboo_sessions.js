@@ -1,60 +1,37 @@
 require('module-alias/register')
 const axios = require('axios')
-const { wrapper } = require('axios-cookiejar-support')
-const { CookieJar } = require('tough-cookie')
 
-// Setup axios with cookie support
-const jar = new CookieJar()
-const client = wrapper(axios.create({ jar }))
-
-const BASE_URL = 'http://localhost:13010'
+const appFactory = require('../app_factory')
 
 async function testTabooSessions() {
   console.log('🎯 Testing Taboo Game Session Management')
-  console.log(`Server: ${BASE_URL}`)
-  
+
+  const app = appFactory({
+    sessionMW: (req, res, next) => {
+      req.session.authorized = true // Mock session for testing
+      req.session.user_id = 'jyyLnruPErEBXMK2YzUfe3' // user ID for testing
+
+      next()
+    },
+  })
+
+  const tabooRouter = require('../routes/taboo')
+  app.use('/api/taboo', tabooRouter)
+
+  app.listen(3000, () => {
+    console.log('✅ Test server is running on http://localhost:3000')
+  })
+
+  const BASE_URL = 'http://localhost:3000/api/taboo'
+
   try {
-    // Step 1: Login with existing test user
-    console.log('\n🔧 Setting up test user...')
-    
-    // Use existing test user from other tests
-    const registerData = {
-      email: 'taboo-test@example.com',
-      password: 'TestPassword123!',
-      auth_code: 'test',
-      first_name: 'Taboo',
-      last_name: 'Tester'
-    }
-
-    try {
-      await client.post(`${BASE_URL}/api/users/register`, registerData)
-      console.log('📝 Test user created')
-    } catch (error) {
-      if (error.response?.status === 409) {
-        console.log('📝 Test user already exists')
-      } else if (error.response?.status === 401) {
-        console.log('📝 Test user already exists (auth required response)')
-      } else {
-        throw error
-      }
-    }
-
-    // Login
-    const loginResponse = await client.post(`${BASE_URL}/api/users/login`, {
-      email: registerData.email,
-      password: registerData.password
-    })
-
-    if (loginResponse.data.success) {
-      console.log('✅ Logged in successfully')
-    } else {
-      throw new Error('Login failed')
-    }
-
-    // Step 2: Get available cards
+    // Step 1: Get available cards
     console.log('\n=== Getting Available Cards ===')
-    const cardsResponse = await client.get(`${BASE_URL}/api/taboo/cards?count=3`)
-    
+
+    const cardsResponse = await axios.get(`${BASE_URL}/cards?count=3`)
+
+    console.log('✅ Cards retrieved:', cardsResponse.data.count)
+
     if (!cardsResponse.data.success || !cardsResponse.data.cards.length) {
       throw new Error('No cards available for testing')
     }
@@ -62,11 +39,11 @@ async function testTabooSessions() {
     const testCard = cardsResponse.data.cards[0]
     console.log(`✅ Using test card: "${testCard.answer}" with ${testCard.key_words.length} key words`)
 
-    // Step 3: Start a new game session
+    // Step 2: Start a new game session
     console.log('\n=== Testing POST /api/taboo/sessions/start ===')
-    const startSessionResponse = await client.post(`${BASE_URL}/api/taboo/sessions/start`, {
+    const startSessionResponse = await axios.post(`${BASE_URL}/sessions/start`, {
       cardId: testCard.id,
-      targetLanguage: 'es'
+      targetLanguage: 'spanish'
     })
 
     if (!startSessionResponse.data.success) {
@@ -82,10 +59,10 @@ async function testTabooSessions() {
       status: session.status
     }, null, 2))
 
-    // Step 4: Get session details
+    // Step 3: Get session details
     console.log('\n=== Testing GET /api/taboo/sessions/:sessionId ===')
-    const getSessionResponse = await client.get(`${BASE_URL}/api/taboo/sessions/${session.id}`)
-    
+    const getSessionResponse = await axios.get(`${BASE_URL}/sessions/${session.id}`)
+
     if (!getSessionResponse.data.success) {
       throw new Error('Failed to get session details')
     }
@@ -98,7 +75,7 @@ async function testTabooSessions() {
       translatedKeyWords: getSessionResponse.data.session.translatedKeyWords
     }, null, 2))
 
-    // Step 5: Submit description for evaluation
+    // Step 4: Submit description for evaluation
     console.log('\n=== Testing POST /api/taboo/sessions/:sessionId/submit ===')
     
     // Generate a test description using the answer word and some key words
@@ -113,7 +90,7 @@ async function testTabooSessions() {
 
     console.log(`🔍 Using test description: "${testDescription}"`)
 
-    const submitResponse = await client.post(`${BASE_URL}/api/taboo/sessions/${session.id}/submit`, {
+    const submitResponse = await axios.post(`${BASE_URL}/sessions/${session.id}/submit`, {
       description: testDescription,
       includeExample: true
     })
@@ -131,10 +108,10 @@ async function testTabooSessions() {
       hasExample: !!submitResponse.data.example
     }, null, 2))
 
-    // Step 6: Get updated session details
+    // Step 5: Get updated session details
     console.log('\n=== Verifying Completed Session ===')
-    const completedSessionResponse = await client.get(`${BASE_URL}/api/taboo/sessions/${session.id}`)
-    
+    const completedSessionResponse = await axios.get(`${BASE_URL}/sessions/${session.id}`)
+
     if (!completedSessionResponse.data.success) {
       throw new Error('Failed to get completed session details')
     }
@@ -150,10 +127,10 @@ async function testTabooSessions() {
       hasAiExample: !!completedSession.aiExampleDescription
     }, null, 2))
 
-    // Step 7: Get session history
+    // Step 6: Get session history
     console.log('\n=== Testing GET /api/taboo/sessions (History) ===')
-    const historyResponse = await client.get(`${BASE_URL}/api/taboo/sessions?limit=5`)
-    
+    const historyResponse = await axios.get(`${BASE_URL}/sessions?limit=5`)
+
     if (!historyResponse.data.success) {
       throw new Error('Failed to get session history')
     }
@@ -173,8 +150,8 @@ async function testTabooSessions() {
 
     // Step 8: Get user statistics
     console.log('\n=== Testing GET /api/taboo/stats ===')
-    const statsResponse = await client.get(`${BASE_URL}/api/taboo/stats`)
-    
+    const statsResponse = await axios.get(`${BASE_URL}/stats`)
+
     if (!statsResponse.data.success) {
       throw new Error('Failed to get user statistics')
     }
@@ -184,8 +161,8 @@ async function testTabooSessions() {
 
     // Step 9: Get categories
     console.log('\n=== Testing GET /api/taboo/categories ===')
-    const categoriesResponse = await client.get(`${BASE_URL}/api/taboo/categories`)
-    
+    const categoriesResponse = await axios.get(`${BASE_URL}/categories`)
+
     if (!categoriesResponse.data.success) {
       throw new Error('Failed to get categories')
     }
@@ -198,7 +175,7 @@ async function testTabooSessions() {
     
     // Try to submit to already completed session
     try {
-      await client.post(`${BASE_URL}/api/taboo/sessions/${session.id}/submit`, {
+      await axios.post(`${BASE_URL}/sessions/${session.id}/submit`, {
         description: "Another description"
       })
       console.log('❌ Should have failed to submit to completed session')
@@ -212,7 +189,7 @@ async function testTabooSessions() {
 
     // Try to get non-existent session
     try {
-      await client.get(`${BASE_URL}/api/taboo/sessions/nonexistent-id`)
+      await axios.get(`${BASE_URL}/sessions/nonexistent-id`)
       console.log('❌ Should have failed to get non-existent session')
     } catch (error) {
       if (error.response?.status === 404) {

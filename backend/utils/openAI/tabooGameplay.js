@@ -13,23 +13,36 @@ const openai = new OpenAI({
 
 /**
  * Translate key words to target language
- * @param {string[]} keyWords - Array of English key words
- * @param {string} targetLanguage - Target language code (e.g., 'es', 'fr', 'de')
+ * @param {Object} params - Translation parameters
+ * @param {string[]} params.keyWords - Array of English key words
+ * @param {string} params.mainWord - The main word that the key words are related to
+ * @param {string} params.targetLanguage - Target language
  * @returns {Promise<Object>} Translation results
+ * @property {boolean} success - Whether the translation was successful
+ * @property {string} translatedMainWord - The translated main/answer word
+ * @property {string[]} translatedWords - Array of translated key words in the target language
+ * @property {string[]} originalWords - Array of original English key words
+ * @property {string} originalMainWord - The original English main word
+ * @property {number} cost - Total cost of the API call
+ * @property {Object} usage - Usage details from the OpenAI API
+ * @property {string} [error] - Error message if the translation fails
  */
-async function translateKeyWords(keyWords, targetLanguage) {
+async function translateKeyWords({ keyWords, mainWord, targetLanguage }) {
   try {
-    const prompt = `Translate the following English words to ${targetLanguage}. 
+    const prompt = `Translate the main word and key words to ${targetLanguage}. 
+    The key words are related to the main concept: "${mainWord}". 
     Provide single-word translations that maintain the same meaning and context.
+    Choose the most appropriate translation for each word given their relationship to each other.
     
-    Words to translate: ${keyWords.join(', ')}`;
+    Main word: ${mainWord}
+    Key words: ${keyWords.join(', ')}`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-2024-08-06',
       messages: [
         {
           role: 'system',
-          content: 'You are a professional translator. Provide accurate, context-appropriate translations for vocabulary games.'
+          content: 'You are a professional translator specializing in vocabulary games. When translating words, consider their context and relationship to the main concept to choose the most appropriate translation. For words with multiple meanings, select the translation that best relates to the given main word.'
         },
         {
           role: 'user',
@@ -40,23 +53,38 @@ async function translateKeyWords(keyWords, targetLanguage) {
         type: 'json_schema',
         json_schema: {
           name: 'translation_response',
-          description: 'Translation results for taboo game key words',
+          description: 'Translation results for taboo game main word and key words',
           strict: true,
           schema: {
             type: 'object',
             properties: {
-              translations: {
+              mainWord: {
+                type: 'object',
+                properties: {
+                  original: {
+                    type: 'string',
+                    description: 'The original English main word'
+                  },
+                  translated: {
+                    type: 'string',
+                    description: 'The translated main word in target language'
+                  }
+                },
+                required: ['original', 'translated'],
+                additionalProperties: false
+              },
+              keyWords: {
                 type: 'array',
                 items: {
                   type: 'object',
                   properties: {
                     original: {
                       type: 'string',
-                      description: 'The original English word'
+                      description: 'The original English key word'
                     },
                     translated: {
                       type: 'string',
-                      description: 'The translated word in target language'
+                      description: 'The translated key word in target language'
                     }
                   },
                   required: ['original', 'translated'],
@@ -64,7 +92,7 @@ async function translateKeyWords(keyWords, targetLanguage) {
                 }
               }
             },
-            required: ['translations'],
+            required: ['mainWord', 'keyWords'],
             additionalProperties: false
           }
         }
@@ -74,16 +102,19 @@ async function translateKeyWords(keyWords, targetLanguage) {
 
     const result = JSON.parse(completion.choices[0].message.content);
     
-    const translatedWords = result.translations.map(t => t.translated);
-    const originalWords = result.translations.map(t => t.original);
+    const translatedMainWord = result.mainWord.translated;
+    const translatedWords = result.keyWords.map(t => t.translated);
+    const originalWords = result.keyWords.map(t => t.original);
 
     // Calculate cost
     const cost = calculateCost('gpt-4o-2024-08-06', completion.usage);
 
     return {
       success: true,
+      translatedMainWord,
       translatedWords,
       originalWords,
+      originalMainWord: mainWord,
       cost: cost?.totalCost || 0,
       usage: completion.usage
     };
@@ -93,8 +124,10 @@ async function translateKeyWords(keyWords, targetLanguage) {
     return {
       success: false,
       error: error.message,
+      translatedMainWord: mainWord,
       translatedWords: [],
-      originalWords: keyWords
+      originalWords: keyWords,
+      originalMainWord: mainWord
     };
   }
 }
@@ -109,24 +142,23 @@ async function translateKeyWords(keyWords, targetLanguage) {
  */
 async function evaluateDescription(description, keyWords, answerWord, targetLanguage = 'es') {
   try {
-    const prompt = `Evaluate this description for a word-guessing game. The user is trying to describe "${answerWord}" and should use as many of these key words as possible: ${keyWords.join(', ')}.
+    const prompt = `Check which of these key words are used in the user's description. Look for exact matches and inflected variations (conjugations, plural forms, etc.) but NOT synonyms.
 
     User's description: "${description}"
-    Target language: ${targetLanguage}
     Key words to find: ${keyWords.join(', ')}
+    Target language: ${targetLanguage}
 
-    Analyze the description and determine:
-    1. Which key words were used (including variations, conjugations, and synonyms)
-    2. How naturally they were incorporated
-    3. Overall quality of the description
-    4. Whether the answer word was mentioned directly (penalty)`;
+    For each key word, determine if it was used in the description. Only count:
+    - Exact matches of the key word
+    - Inflected forms (conjugations, plural/singular forms, verb tenses)
+    - NOT synonyms or related words - only the specific key words or their inflections`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-2024-08-06',
       messages: [
         {
           role: 'system',
-          content: `You are an expert language teacher evaluating student descriptions in ${targetLanguage}. Be fair but encouraging, and provide constructive feedback.`
+          content: `You are a language expert who identifies exact word usage in ${targetLanguage}. Only detect the specific given words or their inflected forms (conjugations, plurals, etc.). Do NOT count synonyms or related words.`
         },
         {
           role: 'user',
@@ -136,8 +168,8 @@ async function evaluateDescription(description, keyWords, answerWord, targetLang
       response_format: {
         type: 'json_schema',
         json_schema: {
-          name: 'evaluation_response',
-          description: 'Evaluation of user description for taboo game',
+          name: 'word_detection_response',
+          description: 'Detection of key words in user description',
           strict: true,
           schema: {
             type: 'object',
@@ -160,77 +192,23 @@ async function evaluateDescription(description, keyWords, answerWord, targetLang
                     keyWord: { type: 'string' },
                     found: { type: 'boolean' },
                     usedAs: { type: 'string' },
-                    natural: { type: 'boolean' },
                     context: { type: 'string' }
                   },
-                  required: ['keyWord', 'found', 'usedAs', 'natural', 'context'],
+                  required: ['keyWord', 'found', 'usedAs', 'context'],
                   additionalProperties: false
                 }
               },
-              directMention: {
+              answerWordMentioned: {
                 type: 'boolean',
                 description: 'Whether the answer word was mentioned directly'
-              },
-              descriptionQuality: {
-                type: 'string',
-                enum: ['excellent', 'good', 'fair', 'poor'],
-                description: 'Overall quality of the description'
-              },
-              grammar: {
-                type: 'string',
-                enum: ['correct', 'minor_errors', 'major_errors'],
-                description: 'Grammar assessment'
-              },
-              creativity: {
-                type: 'integer',
-                minimum: 1,
-                maximum: 10,
-                description: 'Creativity score from 1-10'
-              },
-              naturalness: {
-                type: 'integer',
-                minimum: 1,
-                maximum: 10,
-                description: 'How naturally the words were incorporated (1-10)'
-              },
-              baseScore: {
-                type: 'integer',
-                minimum: 0,
-                maximum: 100,
-                description: 'Base score based on words found'
-              },
-              bonusPoints: {
-                type: 'integer',
-                minimum: 0,
-                description: 'Bonus points for quality'
-              },
-              penaltyPoints: {
-                type: 'integer',
-                minimum: 0,
-                description: 'Penalty points for issues'
-              },
-              finalScore: {
-                type: 'integer',
-                minimum: 0,
-                maximum: 100,
-                description: 'Final calculated score'
-              },
-              feedback: {
-                type: 'string',
-                description: 'Constructive feedback message'
-              },
-              suggestions: {
-                type: 'array',
-                items: { type: 'string' },
-                description: 'Suggestions for improvement'
               }
             },
-            required: ['wordsFound', 'wordsMissed', 'wordDetails', 'directMention', 'descriptionQuality', 'grammar', 'creativity', 'naturalness', 'baseScore', 'bonusPoints', 'penaltyPoints', 'finalScore', 'feedback', 'suggestions'],
+            required: ['wordsFound', 'wordsMissed', 'wordDetails', 'answerWordMentioned'],
             additionalProperties: false
           }
         }
       },
-      temperature: 0.3
+      temperature: 0.1
     });
 
     const result = JSON.parse(completion.choices[0].message.content);
@@ -261,8 +239,13 @@ async function evaluateDescription(description, keyWords, answerWord, targetLang
       error: error.message,
       wordsFound,
       wordsMissed,
-      finalScore: Math.round((wordsFound.length / keyWords.length) * 100),
-      feedback: "Evaluation service temporarily unavailable. Score based on simple word matching.",
+      wordDetails: keyWords.map(word => ({
+        keyWord: word,
+        found: wordsFound.includes(word),
+        usedAs: wordsFound.includes(word) ? word : 'not found',
+        context: wordsFound.includes(word) ? 'simple match' : 'not detected'
+      })),
+      answerWordMentioned: description.toLowerCase().includes(answerWord.toLowerCase()),
       fallback: true
     };
   }
@@ -371,6 +354,159 @@ async function generateSampleDescription(answerWord, keyWords, targetLanguage = 
 }
 
 /**
+ * Generate a new taboo card using AI
+ * @param {Object} params - Card generation parameters
+ * @param {string} params.answerWord - The main word for the taboo card
+ * @param {string} [params.category] - Optional category for the word (e.g., 'animals', 'food', 'objects')
+ * @param {string} [params.difficulty] - Optional difficulty level ('easy', 'medium', 'hard')
+ * @param {number} [params.keyWordCount=5] - Number of taboo keywords to generate
+ * @param {string} [params.language='en'] - Language for the card (default: English)
+ * @returns {Promise<Object>} Generated taboo card
+ * @property {boolean} success - Whether the generation was successful
+ * @property {Object} card - The generated taboo card
+ * @property {string} card.answer - The main answer word
+ * @property {string[]} card.key_words - Array of taboo keywords
+ * @property {string} [card.category] - Category of the word
+ * @property {string} [card.difficulty] - Difficulty level
+ * @property {string} [card.language] - Language of the card
+ * @property {number} cost - Total cost of the API call
+ * @property {Object} usage - Usage details from the OpenAI API
+ * @property {string} [error] - Error message if generation fails
+ */
+async function generateTabooCard({ 
+  answerWord, 
+  category, 
+  difficulty = 'medium', 
+  keyWordCount = 5, 
+  language = 'en' 
+}) {
+  try {
+    const languageNames = {
+      'en': 'English',
+      'es': 'Spanish', 
+      'fr': 'French',
+      'de': 'German',
+      'it': 'Italian',
+      'pt': 'Portuguese'
+    };
+
+    const languageName = languageNames[language] || language;
+
+    const prompt = `Create a taboo card for the word "${answerWord}" in ${languageName}.
+
+    Instructions:
+    - Generate ${keyWordCount} taboo keywords that people would most commonly use when describing "${answerWord}"
+    - These should be the MOST OBVIOUS words someone would naturally use in their description
+    - Choose words that would make the game challenging but fair
+    - Avoid overly obscure or technical terms
+    - Include a mix of: related nouns, descriptive adjectives, common verbs, and associated concepts
+    - Keywords should be single words (or compound words that are commonly written as one word)
+    ${category ? `- Consider that this word belongs to the category: ${category}` : ''}
+    ${difficulty ? `- Adjust difficulty level to: ${difficulty} (easy = very common words, medium = mix of common and specific, hard = more specific/technical words)` : ''}
+
+    Example reasoning for "CAR":
+    - DRIVE (most obvious action)
+    - VEHICLE (direct category)  
+    - WHEELS (essential physical feature)
+    - ROAD (common association)
+    - TRANSPORT (main function)
+
+    Think about what words would make someone immediately say "${answerWord}" and make those taboo.`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-2024-08-06',
+      messages: [
+        {
+          role: 'system',
+          content: `You are an expert game designer specializing in word games like Taboo. You understand what makes effective taboo keywords - they should be the most obvious words people would use to describe the answer word, making the game challenging but fair. Focus on common, natural language that players would intuitively reach for.`
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      response_format: {
+        type: 'json_schema',
+        json_schema: {
+          name: 'taboo_card_response',
+          description: 'A generated taboo card with answer word and forbidden keywords',
+          strict: true,
+          schema: {
+            type: 'object',
+            properties: {
+              answer: {
+                type: 'string',
+                description: 'The main answer word (uppercase)'
+              },
+              key_words: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Array of taboo keywords (uppercase)'
+              },
+              category: {
+                type: 'string',
+                description: 'Suggested category for this word'
+              },
+              difficulty: {
+                type: 'string',
+                enum: ['easy', 'medium', 'hard'],
+                description: 'Assessed difficulty level'
+              },
+              reasoning: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    keyword: { type: 'string' },
+                    reason: { type: 'string' }
+                  },
+                  required: ['keyword', 'reason'],
+                  additionalProperties: false
+                },
+                description: 'Explanation for why each keyword was chosen'
+              }
+            },
+            required: ['answer', 'key_words', 'category', 'difficulty', 'reasoning'],
+            additionalProperties: false
+          }
+        }
+      },
+      temperature: 0.7
+    });
+
+    const result = JSON.parse(completion.choices[0].message.content);
+    
+    // Calculate cost
+    const cost = calculateCost('gpt-4o-2024-08-06', completion.usage);
+
+    // Ensure the answer word is in the correct format
+    const card = {
+      answer: result.answer.toUpperCase(),
+      key_words: result.key_words.map(word => word.toUpperCase()),
+      category: category || result.category.toLowerCase(),
+      difficulty: difficulty || result.difficulty,
+      language: language
+    };
+
+    return {
+      success: true,
+      card,
+      reasoning: result.reasoning,
+      cost: cost?.totalCost || 0,
+      usage: completion.usage
+    };
+
+  } catch (error) {
+    console.error('Error generating taboo card:', error);
+    return {
+      success: false,
+      error: error.message,
+      card: null
+    };
+  }
+}
+
+/**
  * Calculate score based on evaluation results
  * @param {Object} evaluation - Results from evaluateDescription
  * @returns {Object} Detailed scoring breakdown
@@ -425,5 +561,6 @@ module.exports = {
   translateKeyWords,
   evaluateDescription,
   generateSampleDescription,
+  generateTabooCard,
   calculateScore
 };

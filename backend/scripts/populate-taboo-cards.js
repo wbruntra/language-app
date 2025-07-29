@@ -15,6 +15,7 @@ async function populateTabooCards() {
 
     const cardsToInsert = tabooData.cards.map(card => ({
       answer_word: card.answer,
+      language: 'en',
       key_words: card.key_words,
       category: categorizeCard(card.answer),
       difficulty: calculateDifficulty(card.key_words),

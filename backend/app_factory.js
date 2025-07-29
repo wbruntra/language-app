@@ -14,7 +14,6 @@ const defaultCookieOpts = {
 function appFactory({
   dbInstance = defaultDB,
   sessionMW = (req, res, next) => {
-    req.session = {}
     next()
   },
   jwtMW = (req, res, next) => {
@@ -31,7 +30,7 @@ function appFactory({
   if (enableLogging) app.use(morgan(loggerFormat))
 
   app.use(cookieSession(cookieOpts))
-  // app.use(sessionMW)
+  app.use(sessionMW)
   app.use(jwtMW)
 
   app.set('db', dbInstance)

@@ -228,8 +228,23 @@ class TabooGameSessions extends Model {
     }
   }
 
-  // Static method to create a new game session
-  static async createGameSession(tabooCardId, userId, targetLanguage, translatedKeyWords) {
+  /**
+   * Static method to create a new game session
+   * @param {Object} params - Game session parameters
+   * @param {string} params.tabooCardId - ID of the taboo card
+   * @param {string} params.userId - ID of the user
+   * @param {string} params.targetLanguage - Target language for the game
+   * @param {string[]} params.translatedKeyWords - Translated taboo words
+   * @param {string} params.translatedMainWord - Translated main word/answer
+   * @returns {Promise<TabooGameSessions>} Created game session
+   */
+  static async createGameSession({
+    tabooCardId,
+    userId,
+    targetLanguage,
+    translatedKeyWords,
+    translatedMainWord
+  }) {
     const tabooCard = await require('./taboo_cards').query().findById(tabooCardId)
     
     if (!tabooCard) {
@@ -240,7 +255,7 @@ class TabooGameSessions extends Model {
       taboo_card_id: tabooCardId,
       user_id: userId,
       target_language: targetLanguage,
-      answer_word: tabooCard.answer_word,
+      answer_word: translatedMainWord, // Use the translated main word
       original_key_words: tabooCard.key_words,
       translated_key_words: translatedKeyWords,
       status: 'initialized'
