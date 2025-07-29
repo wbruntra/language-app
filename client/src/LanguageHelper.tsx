@@ -5,8 +5,19 @@ import { useDispatch } from 'react-redux'
 import { clearConversation } from './store/languageHelperSlice'
 import RecordingControls from './components/RecordingControls'
 import TranscriptionInput from './components/TranscriptionInput'
+import type { LanguageCode } from './types'
 
-function LanguageHelper({ selectedLanguage }) {
+interface Language {
+  flag: string
+  name: string
+  nativeName: string
+}
+
+interface LanguageHelperProps {
+  selectedLanguage?: LanguageCode
+}
+
+function LanguageHelper({ selectedLanguage }: LanguageHelperProps): React.JSX.Element {
   // Use Redux store via our custom hook
   const {
     // State from store
@@ -42,10 +53,10 @@ function LanguageHelper({ selectedLanguage }) {
   const currentSelectedLanguage = selectedLanguage || 'spanish'
 
   // Refs for follow-up recording functionality only
-  const shouldTranscribeRef = useRef(true)
-  const mediaRecorderRef = useRef(null)
-  const audioChunksRef = useRef([])
-  const conversationHistoryRef = useRef(null)
+  const shouldTranscribeRef = useRef<boolean>(true)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
+  const conversationHistoryRef = useRef<HTMLDivElement | null>(null)
 
   // Auto-scroll to bottom when conversation history changes
   useEffect(() => {
@@ -98,7 +109,8 @@ function LanguageHelper({ selectedLanguage }) {
         audioUrl: response.data.audioUrl, // Include audio URL
       })
     } catch (err) {
-      const errorMsg = err.response?.data?.error || err.message
+      const error = err as any
+      const errorMsg = error.response?.data?.error || error.message
       actions.setError(`Failed to send message: ${errorMsg}`)
       // On error, remove the user message we optimistically added
       actions.setConversationHistory(conversationHistory)
@@ -126,7 +138,8 @@ function LanguageHelper({ selectedLanguage }) {
         conversationHistory: response.data.conversationHistory,
       })
     } catch (err) {
-      const errorMsg = err.response?.data?.error || err.message
+      const error = err as any
+      const errorMsg = error.response?.data?.error || error.message
       actions.setError(`Failed to generate scenario: ${errorMsg}`)
     } finally {
       actions.setScenarioLoading(false)
@@ -181,7 +194,8 @@ function LanguageHelper({ selectedLanguage }) {
       actions.setFollowupQuestion('')
       actions.setFollowupTranscription('')
     } catch (err) {
-      const errorMsg = err.response?.data?.error || err.message
+      const error = err as any
+      const errorMsg = error.response?.data?.error || error.message
       actions.setError(`Failed to send follow-up question: ${errorMsg}`)
     } finally {
       actions.setFollowupLoading(false)
@@ -244,7 +258,8 @@ function LanguageHelper({ selectedLanguage }) {
       actions.setFollowupTranscription(response.data)
       actions.setError('')
     } catch (err) {
-      const errorMsg = err.response?.data || err.message
+      const error = err as any
+      const errorMsg = error.response?.data || error.message
       actions.setError(`Failed to transcribe follow-up audio: ${errorMsg}`)
     } finally {
       actions.setFollowupLoading(false)
@@ -271,7 +286,8 @@ function LanguageHelper({ selectedLanguage }) {
       await audio.play()
     } catch (err) {
       actions.setIsPlayingAudio(false)
-      actions.setError('Failed to play audio: ' + err.message)
+      const error = err as any
+      actions.setError('Failed to play audio: ' + error.message)
     }
   }
 
@@ -723,8 +739,8 @@ export function LanguageSelector({ selectedLanguage, onLanguageChange }) {
                 setShowDropdown(false)
               }}
             >
-              {lang.flag} {lang.name}
-              <small className="text-muted d-block">{lang.nativeName}</small>
+              {(lang as Language).flag} {(lang as Language).name}
+              <small className="text-muted d-block">{(lang as Language).nativeName}</small>
             </button>
           ))}
         </div>

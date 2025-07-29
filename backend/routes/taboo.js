@@ -228,10 +228,15 @@ router.post('/sessions/:sessionId/submit', async (req, res) => {
       })
     }
 
-    // Update session status
-    await session.updateStatus('in_progress')
+    // Update session status to in_progress if it's the first submission
+    if (session.status === 'initialized') {
+      await session.updateStatus('in_progress')
+    }
 
-    // Evaluate the description
+    // Get the words already found in previous attempts
+    const previouslyFoundWords = session.words_found || []
+
+    // Evaluate the current description
     const evaluation = await evaluateDescription(
       description,
       session.translated_key_words,
@@ -239,12 +244,65 @@ router.post('/sessions/:sessionId/submit', async (req, res) => {
       session.target_language,
     )
 
+    if (!evaluation.success) {
+      return res.status(500).json({
+        error: 'Failed to evaluate description',
+        details: evaluation.error,
+      })
+    }
+
+    // Combine newly found words with previously found words
+    const newWordsFound = evaluation.wordsFound || []
+    const allWordsFound = [...new Set([...previouslyFoundWords, ...newWordsFound])]
+    const wordsFoundThisAttempt = newWordsFound.filter(word => !previouslyFoundWords.includes(word))
+    
+    // Calculate words missed (only words not found in any attempt)
+    const allWordsMissed = session.translated_key_words.filter(word => !allWordsFound.includes(word))
+
+    // Add this submission to the session messages/history
+    if (!session.messages) {
+      session.messages = []
+    }
+    
+    session.messages.push({
+      type: 'submission',
+      content: description.trim(),
+      wordsFound: newWordsFound,
+      wordsFoundThisAttempt: wordsFoundThisAttempt,
+      timestamp: new Date().toISOString(),
+      metadata: {
+        evaluationId: evaluation.id || null,
+        answerWordMentioned: evaluation.answerWordMentioned || false
+      }
+    })
+
+    // Determine if game should be completed (all words found or user wants to end)
+    const isGameComplete = allWordsFound.length === session.translated_key_words.length
+    const newStatus = isGameComplete ? 'completed' : 'in_progress'
+
+    // Calculate score based on total words found
+    const scorePercentage = Math.round((allWordsFound.length / session.translated_key_words.length) * 100)
+
+    // Update session with new progress
+    await session.$query().patch({
+      status: newStatus,
+      words_found: allWordsFound,
+      words_missed: allWordsMissed,
+      score: scorePercentage,
+      messages: session.messages,
+      // Only update user_description and evaluation_result if game is complete
+      ...(isGameComplete && {
+        user_description: description.trim(),
+        evaluation_result: evaluation
+      })
+    })
+
     let exampleDescription = null
     let totalCost = evaluation.cost || 0
     let totalUsage = evaluation.usage || {}
 
-    // Generate example if requested and evaluation succeeded
-    if (includeExample && evaluation.success) {
+    // Generate example if requested, evaluation succeeded, and game is complete
+    if (includeExample && evaluation.success && isGameComplete) {
       const example = await generateSampleDescription(
         session.answer_word,
         session.translated_key_words,
@@ -264,11 +322,13 @@ router.post('/sessions/:sessionId/submit', async (req, res) => {
           totalUsage.total_tokens =
             (totalUsage.total_tokens || 0) + (example.usage.total_tokens || 0)
         }
+
+        // Update session with example if game is complete
+        await session.$query().patch({
+          ai_example_description: exampleDescription
+        })
       }
     }
-
-    // Complete the game session
-    await session.completeGame(description, evaluation, exampleDescription)
 
     // Track AI usage
     if (totalUsage.total_tokens) {
@@ -285,7 +345,9 @@ router.post('/sessions/:sessionId/submit', async (req, res) => {
             request_type: 'taboo_session_submit',
             target_language: session.target_language,
             session_id: sessionId,
-            included_example: includeExample,
+            included_example: includeExample && isGameComplete,
+            submission_number: session.messages.length,
+            is_game_complete: isGameComplete
           },
         })
       } catch (usageError) {
@@ -297,12 +359,21 @@ router.post('/sessions/:sessionId/submit', async (req, res) => {
     const response = {
       success: true,
       sessionId,
+      isGameComplete,
       evaluation: {
-        wordsFound: evaluation.wordsFound || [],
-        wordsMissed: evaluation.wordsMissed || [],
+        wordsFound: newWordsFound, // Words found in this specific attempt
+        wordsFoundThisAttempt: wordsFoundThisAttempt, // New words found (not previously found)
+        allWordsFound: allWordsFound, // All words found across all attempts
+        wordsMissed: allWordsMissed, // Words still not found
         wordDetails: evaluation.wordDetails || [],
         answerWordMentioned: evaluation.answerWordMentioned || false,
+        totalProgress: {
+          found: allWordsFound.length,
+          total: session.translated_key_words.length,
+          percentage: scorePercentage
+        }
       },
+      submissionCount: session.messages.length
     }
 
     if (exampleDescription) {
@@ -476,6 +547,249 @@ router.get('/categories', async (req, res) => {
     console.error('Error getting categories:', error)
     res.status(500).json({
       error: 'Failed to retrieve categories',
+      details: error.message,
+    })
+  }
+})
+
+/**
+ * POST /api/taboo/sessions/:sessionId/generate-example
+ * Generate an AI example description for a completed session
+ */
+router.post('/sessions/:sessionId/generate-example', async (req, res) => {
+  try {
+    const { sessionId } = req.params
+    const userId = req.session?.user_id
+
+    if (!userId) {
+      return res.status(401).json({
+        error: 'User must be authenticated',
+      })
+    }
+
+    // Get the session
+    const session = await TabooGameSessions.query().findById(sessionId).where('user_id', userId)
+
+    if (!session) {
+      return res.status(404).json({
+        error: 'Game session not found or does not belong to current user',
+      })
+    }
+
+    // Generate example description
+    const example = await generateSampleDescription(
+      session.answer_word,
+      session.translated_key_words,
+      session.target_language,
+    )
+
+    if (!example.success) {
+      return res.status(500).json({
+        error: 'Failed to generate example description',
+        details: example.error,
+      })
+    }
+
+    // Update session with the example if not already present
+    if (!session.ai_example_description) {
+      await session.$query().patch({
+        ai_example_description: example.description
+      })
+    }
+
+    // Track AI usage
+    if (example.usage?.total_tokens) {
+      try {
+        await AiUsage.query().insert({
+          user_id: userId,
+          input_tokens: example.usage.prompt_tokens || 0,
+          cached_input_tokens: example.usage.prompt_tokens_details?.cached_tokens || 0,
+          output_tokens: example.usage.completion_tokens || 0,
+          metadata: {
+            model_used: 'gpt-4o-2024-08-06',
+            tokens_used: example.usage.total_tokens || 0,
+            cost_usd: example.cost || 0,
+            request_type: 'taboo_generate_example',
+            target_language: session.target_language,
+            session_id: sessionId,
+          },
+        })
+      } catch (usageError) {
+        console.error('Failed to track AI usage:', usageError)
+      }
+    }
+
+    res.json({
+      success: true,
+      example: {
+        description: example.description,
+      }
+    })
+  } catch (error) {
+    console.error('Error generating example description:', error)
+    res.status(500).json({
+      error: 'Failed to generate example description',
+      details: error.message,
+    })
+  }
+})
+
+/**
+ * POST /api/taboo/sessions/:sessionId/finish
+ * Finish a taboo game session (user chooses to stop making attempts)
+ */
+router.post('/sessions/:sessionId/finish', async (req, res) => {
+  try {
+    const { sessionId } = req.params
+    const { includeExample = true } = req.body
+    const userId = req.session?.user_id
+
+    if (!userId) {
+      return res.status(401).json({
+        error: 'User must be authenticated',
+      })
+    }
+
+    // Get the session
+    const session = await TabooGameSessions.query().findById(sessionId).where('user_id', userId)
+
+    if (!session) {
+      return res.status(404).json({
+        error: 'Game session not found or does not belong to current user',
+      })
+    }
+
+    if (session.status === 'completed') {
+      return res.status(400).json({
+        error: 'This game session has already been completed',
+      })
+    }
+
+    if (!session.messages || session.messages.length === 0) {
+      return res.status(400).json({
+        error: 'Cannot finish a session without any submissions',
+      })
+    }
+
+    // Get the last submission for final evaluation storage
+    const lastSubmission = session.messages
+      .filter(msg => msg.type === 'submission')
+      .pop()
+
+    if (!lastSubmission) {
+      return res.status(400).json({
+        error: 'No valid submissions found in session',
+      })
+    }
+
+    const allWordsFound = session.words_found || []
+    const allWordsMissed = session.translated_key_words.filter(word => !allWordsFound.includes(word))
+    const scorePercentage = Math.round((allWordsFound.length / session.translated_key_words.length) * 100)
+
+    let exampleDescription = null
+    let totalCost = 0
+    let totalUsage = {}
+
+    // Generate example if requested
+    if (includeExample) {
+      const example = await generateSampleDescription(
+        session.answer_word,
+        session.translated_key_words,
+        session.target_language,
+      )
+
+      if (example.success) {
+        exampleDescription = example.description
+        totalCost = example.cost || 0
+        totalUsage = example.usage || {}
+      }
+    }
+
+    // Mark session as completed
+    await session.$query().patch({
+      status: 'completed',
+      user_description: lastSubmission.content,
+      evaluation_result: {
+        wordsFound: allWordsFound,
+        wordsMissed: allWordsMissed,
+        score: scorePercentage,
+        finishedByUser: true,
+        totalAttempts: session.messages.filter(msg => msg.type === 'submission').length
+      },
+      ai_example_description: exampleDescription,
+      score: scorePercentage
+    })
+
+    // Add completion message
+    if (!session.messages) {
+      session.messages = []
+    }
+    
+    session.messages.push({
+      type: 'game_finished',
+      content: 'Game finished by user',
+      metadata: {
+        finalScore: scorePercentage,
+        wordsFound: allWordsFound.length,
+        totalWords: session.translated_key_words.length,
+        attempts: session.messages.filter(msg => msg.type === 'submission').length
+      },
+      timestamp: new Date().toISOString()
+    })
+
+    await session.$query().patch({ messages: session.messages })
+
+    // Track AI usage for example generation
+    if (totalUsage.total_tokens) {
+      try {
+        await AiUsage.query().insert({
+          user_id: userId,
+          input_tokens: totalUsage.prompt_tokens || 0,
+          cached_input_tokens: totalUsage.prompt_tokens_details?.cached_tokens || 0,
+          output_tokens: totalUsage.completion_tokens || 0,
+          metadata: {
+            model_used: 'gpt-4o-2024-08-06',
+            tokens_used: totalUsage.total_tokens || 0,
+            cost_usd: totalCost,
+            request_type: 'taboo_session_finish',
+            target_language: session.target_language,
+            session_id: sessionId,
+            included_example: includeExample,
+          },
+        })
+      } catch (usageError) {
+        console.error('Failed to track AI usage:', usageError)
+      }
+    }
+
+    // Prepare response
+    const response = {
+      success: true,
+      sessionId,
+      finalResults: {
+        wordsFound: allWordsFound,
+        wordsMissed: allWordsMissed,
+        score: scorePercentage,
+        totalAttempts: session.messages.filter(msg => msg.type === 'submission').length,
+        progress: {
+          found: allWordsFound.length,
+          total: session.translated_key_words.length,
+          percentage: scorePercentage
+        }
+      }
+    }
+
+    if (exampleDescription) {
+      response.example = {
+        description: exampleDescription,
+      }
+    }
+
+    res.json(response)
+  } catch (error) {
+    console.error('Error finishing game session:', error)
+    res.status(500).json({
+      error: 'Failed to finish game session',
       details: error.message,
     })
   }

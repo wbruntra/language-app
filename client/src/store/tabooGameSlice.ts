@@ -35,6 +35,24 @@ export interface TabooGameState {
   loading: boolean
   error: string | null
   
+  // Game play state
+  userDescription: string
+  submittingDescription: boolean
+  wordsFound: string[]
+  wordsMissed: string[]
+  evaluationResult: any | null
+  showWordBoard: boolean
+  allWordsRevealed: boolean
+  submissionHistory: Array<{
+    description: string
+    wordsFound: string[]
+    timestamp: string
+  }>
+  
+  // AI Example state
+  aiExample: string | null
+  generatingExample: boolean
+  
   // Game history and stats
   recentSessions: TabooSession[]
   userStats: {
@@ -62,6 +80,20 @@ const initialState: TabooGameState = {
   // UI state
   loading: false,
   error: null,
+  
+  // Game play state
+  userDescription: '',
+  submittingDescription: false,
+  wordsFound: [],
+  wordsMissed: [],
+  evaluationResult: null,
+  showWordBoard: false,
+  allWordsRevealed: false,
+  submissionHistory: [],
+  
+  // AI Example state
+  aiExample: null,
+  generatingExample: false,
   
   // Game history and stats
   recentSessions: [],
@@ -98,6 +130,44 @@ const tabooGameSlice = createSlice({
     },
     setError: (state, action: PayloadAction<string | null>) => {
       state.error = action.payload
+    },
+    
+    // Game play actions
+    setUserDescription: (state, action: PayloadAction<string>) => {
+      state.userDescription = action.payload
+    },
+    setSubmittingDescription: (state, action: PayloadAction<boolean>) => {
+      state.submittingDescription = action.payload
+    },
+    setWordsFound: (state, action: PayloadAction<string[]>) => {
+      state.wordsFound = action.payload
+    },
+    setWordsMissed: (state, action: PayloadAction<string[]>) => {
+      state.wordsMissed = action.payload
+    },
+    setEvaluationResult: (state, action: PayloadAction<any>) => {
+      state.evaluationResult = action.payload
+    },
+    setShowWordBoard: (state, action: PayloadAction<boolean>) => {
+      state.showWordBoard = action.payload
+    },
+    setAllWordsRevealed: (state, action: PayloadAction<boolean>) => {
+      state.allWordsRevealed = action.payload
+    },
+    addSubmissionToHistory: (state, action: PayloadAction<{
+      description: string
+      wordsFound: string[]
+      timestamp: string
+    }>) => {
+      state.submissionHistory.push(action.payload)
+    },
+    
+    // AI Example actions
+    setGeneratingExample: (state, action: PayloadAction<boolean>) => {
+      state.generatingExample = action.payload
+    },
+    setAiExample: (state, action: PayloadAction<string | null>) => {
+      state.aiExample = action.payload
     },
     
     // Game history and stats actions
@@ -139,6 +209,49 @@ const tabooGameSlice = createSlice({
       state.currentSession = action.payload
       state.loading = false
       state.error = null
+      // Reset game play state
+      state.userDescription = ''
+      state.submittingDescription = false
+      state.wordsFound = []
+      state.wordsMissed = []
+      state.evaluationResult = null
+      state.showWordBoard = false
+      state.allWordsRevealed = false
+      state.submissionHistory = []
+      state.aiExample = null
+      state.generatingExample = false
+    },
+    descriptionSubmitted: (state, action: PayloadAction<{
+      wordsFound: string[]
+      wordsMissed: string[]
+      evaluationResult: any
+      newWordsFound: string[]
+    }>) => {
+      state.submittingDescription = false
+      
+      // Accumulate found words (avoid duplicates)
+      const allFoundWords = [...new Set([...state.wordsFound, ...action.payload.newWordsFound])]
+      state.wordsFound = allFoundWords
+      
+      // Update missed words (only words not found yet)
+      if (state.currentSession) {
+        state.wordsMissed = state.currentSession.translatedKeyWords.filter(
+          word => !allFoundWords.includes(word)
+        )
+      }
+      
+      state.evaluationResult = action.payload.evaluationResult
+      state.showWordBoard = true
+      
+      // Add to submission history
+      state.submissionHistory.push({
+        description: state.userDescription,
+        wordsFound: action.payload.newWordsFound,
+        timestamp: new Date().toISOString()
+      })
+      
+      // Clear current description for next attempt
+      state.userDescription = ''
     },
     gameCompleted: (state, action: PayloadAction<TabooSession>) => {
       state.stage = 'completed'
@@ -161,6 +274,17 @@ const tabooGameSlice = createSlice({
       state.currentSession = null
       state.loading = false
       state.error = null
+      // Reset game play state
+      state.userDescription = ''
+      state.submittingDescription = false
+      state.wordsFound = []
+      state.wordsMissed = []
+      state.evaluationResult = null
+      state.showWordBoard = false
+      state.allWordsRevealed = false
+      state.submissionHistory = []
+      state.aiExample = null
+      state.generatingExample = false
     },
     
     // Clear all game data
@@ -171,6 +295,17 @@ const tabooGameSlice = createSlice({
       state.error = null
       state.recentSessions = []
       state.userStats = null
+      // Reset game play state
+      state.userDescription = ''
+      state.submittingDescription = false
+      state.wordsFound = []
+      state.wordsMissed = []
+      state.evaluationResult = null
+      state.showWordBoard = false
+      state.allWordsRevealed = false
+      state.submissionHistory = []
+      state.aiExample = null
+      state.generatingExample = false
     },
   },
 })
@@ -184,6 +319,20 @@ export const {
   // UI state actions
   setLoading,
   setError,
+  
+  // Game play actions
+  setUserDescription,
+  setSubmittingDescription,
+  setWordsFound,
+  setWordsMissed,
+  setEvaluationResult,
+  setShowWordBoard,
+  setAllWordsRevealed,
+  addSubmissionToHistory,
+  
+  // AI Example actions
+  setGeneratingExample,
+  setAiExample,
   
   // Game history and stats actions
   setRecentSessions,
@@ -204,6 +353,7 @@ export const {
   gameError,
   resetGame,
   clearGameData,
+  descriptionSubmitted,
 } = tabooGameSlice.actions
 
 export default tabooGameSlice.reducer
