@@ -171,6 +171,18 @@ export interface TranscriptionInputProps {
   placeholder?: string;
 }
 
+export interface NavbarProps {
+  onLanguageChange: (language: LanguageCode) => void;
+}
+
+export interface DashboardProps {
+  selectedLanguage: LanguageCode;
+}
+
+export interface ProtectedRouteProps {
+  children: React.ReactNode;
+}
+
 // Hook types
 export interface UseLanguageHelperReturn {
   // Recording functions

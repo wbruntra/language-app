@@ -2,7 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Provider } from 'react-redux'
 import './styles/index.scss'
-import AppContent from './components/AppContent'
+import App from './App'
 import store from './store'
 
 const rootElement = document.getElementById('root')
@@ -13,7 +13,7 @@ if (!rootElement) {
 createRoot(rootElement).render(
   <StrictMode>
     <Provider store={store}>
-      <AppContent />
+      <App />
     </Provider>
   </StrictMode>,
 )

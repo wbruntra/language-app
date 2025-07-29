@@ -19,11 +19,15 @@
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.8.2",
+    "@types/react-router-dom": "^5.3.3",
     "axios": "^1.8.4",
-    "bootstrap": "^5.3.5",
+    "bootstrap": "^5.3.7",
     "react": "^19.0.0",
+    "react-bootstrap": "^2.10.10",
     "react-dom": "^19.0.0",
     "react-redux": "^9.2.0",
+    "react-router": "^7.7.1",
+    "react-router-dom": "^7.7.1",
     "sass": "^1.86.3"
   },
   "devDependencies": {
