@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Login from './components/Login'
 import MainLayout from './components/MainLayout'
 import Dashboard from './components/Dashboard'
+import Vocabulary from './components/Vocabulary'
 import ProtectedRoute from './components/ProtectedRoute'
 import { useUser } from './hooks/useUser'
 import { useLanguageConfig } from './hooks/useLanguageHelper'
@@ -51,6 +52,10 @@ function App(): React.JSX.Element {
           <Route 
             path="dashboard" 
             element={<Dashboard selectedLanguage={selectedLanguage} />} 
+          />
+          <Route 
+            path="vocabulary" 
+            element={<Vocabulary />} 
           />
         </Route>
         

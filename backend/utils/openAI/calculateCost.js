@@ -1,4 +1,4 @@
-const PRICING = require('@data/aiPricing')
+const PRICING = require('./data/aiPricing')
 
 /**
  * Calculate the cost of an OpenAI API call based on model and usage

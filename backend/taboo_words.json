@@ -1,0 +1,92 @@
+{
+  "cards": [
+    {
+      "answer": "CAR",
+      "key_words": ["DRIVER", "RED", "RIDE", "TRANSPORT", "FAST"]
+    },
+    {
+      "answer": "DRAGONFLY",
+      "key_words": ["INSECT", "WINGS", "FLY", "SUMMER", "WATER"]
+    },
+    {
+      "answer": "SNOWFLAKE",
+      "key_words": ["WINTER", "COLD", "WHITE", "ICE", "FALL"]
+    },
+    {
+      "answer": "HUNGRY",
+      "key_words": ["EAT", "FOOD", "MEAL", "STOMACH", "FEELING"]
+    },
+    {
+      "answer": "COMB",
+      "key_words": ["BRUSH", "HAIR", "SMOOTH", "SMALL", "BEAUTIFUL"]
+    },
+    {
+      "answer": "HAMBURGER",
+      "key_words": ["AMERICA", "BEEF", "BREAD", "MCDONALDS", "UNHEALTHY"]
+    },
+    {
+      "answer": "POLAR BEAR",
+      "key_words": ["COLD", "WINTER", "ALASKA", "WHITE", "SNOW"]
+    },
+    {
+      "answer": "PENGUIN",
+      "key_words": ["BIRD", "FLY", "ANIMAL", "BLACK", "WHITE"]
+    },
+    {
+      "answer": "GLASSES",
+      "key_words": ["EYES", "SEE", "CONTACTS", "WEAR", "FACE"]
+    },
+    {
+      "answer": "POPCORN",
+      "key_words": ["KERNEL", "BUTTER", "SWEET", "MICROWAVE", "SNACK FOOD"]
+    },
+    {
+      "answer": "SPEECH",
+      "key_words": ["GIVE", "SPEAK", "IMPORTANT", "AUDIENCE", "NERVOUS"]
+    },
+    {
+      "answer": "FURIOUS",
+      "key_words": ["ANGRY", "RED FACE", "HURT", "RAGE", "VIOLENT"]
+    },
+    {
+      "answer": "BULL",
+      "key_words": ["RIDE", "RED", "MALE", "HORNS", "CHARGE"]
+    },
+    {
+      "answer": "PEACEFUL",
+      "key_words": ["HARMONY", "CALM", "QUIET", "TRANQUIL", "VIOLENT"]
+    },
+    {
+      "answer": "NORMAL",
+      "key_words": ["STRANGE", "STANDARD", "TYPICAL", "STATUS QUO", "WEIRD"]
+    },
+    {
+      "answer": "ORIGINAL",
+      "key_words": ["FIRST", "UNIQUE", "SPECIAL", "STANDARD", "EARLY"]
+    },
+    {
+      "answer": "MAGIC",
+      "key_words": ["WIZARD", "WITCH", "POWER", "TRICK", "SHOW"]
+    },
+    {
+      "answer": "NAUGHTY",
+      "key_words": ["BAD", "BEHAVIOR", "GOOD", "RUDE", "DISOBEDIENT"]
+    },
+    {
+      "answer": "RESCUE",
+      "key_words": ["SAVE", "HERO", "DANGER", "SAFE", "HELP"]
+    },
+    {
+      "answer": "MATCH",
+      "key_words": ["FIRE", "STRIKE", "PAIR", "TOGETHER", "EQUAL"]
+    },
+    {
+      "answer": "HIPPO",
+      "key_words": ["FAT", "ANIMAL", "AFRICA", "RIVER", "LARGE"]
+    },
+    {
+      "answer": "FAIRYTALE",
+      "key_words": ["PRINCE", "PRINCESS", "MAGIC", "QUEEN", "STORY"]
+    }
+  ]
+}

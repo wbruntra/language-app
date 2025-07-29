@@ -1,8 +1,8 @@
 require('module-alias/register') // Initialize module-alias
-const UserInfo = require('./tables/user_info')
-const ConversationInfo = require('./tables/conversation_info')
-const UserVocabInfo = require('./tables/user_vocab_info')
-const Uploads = require('./tables/uploads')
+const UserInfo = require('../tables/user_info')
+const ConversationInfo = require('../tables/conversation_info')
+const UserVocabInfo = require('../tables/user_vocab_info')
+const Uploads = require('../tables/uploads')
 
 async function testModels() {
   try {

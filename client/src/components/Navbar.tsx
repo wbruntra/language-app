@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { Offcanvas } from 'react-bootstrap'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useUser } from '../hooks/useUser'
 import { useLanguageConfig } from '../hooks/useLanguageHelper'
 import { setTtsEnabled } from '../store/languageHelperSlice'
@@ -18,6 +19,8 @@ function Navbar({ onLanguageChange }: NavbarProps): React.JSX.Element {
   const { user, logout } = useUser()
   const { selectedLanguage, currentLanguage } = useLanguageConfig()
   const dispatch = useDispatch<AppDispatch>()
+  const navigate = useNavigate()
+  const location = useLocation()
   const ttsEnabled = useSelector((state: RootState) => state.languageHelper.ttsEnabled)
   const [showSidebar, setShowSidebar] = useState(false)
 
@@ -29,6 +32,11 @@ function Navbar({ onLanguageChange }: NavbarProps): React.JSX.Element {
 
   const handleSidebarClose = () => setShowSidebar(false)
   const handleSidebarShow = () => setShowSidebar(true)
+
+  const navigateTo = (path: string) => {
+    navigate(path)
+    handleSidebarClose()
+  }
 
   return (
     <>
@@ -89,15 +97,23 @@ function Navbar({ onLanguageChange }: NavbarProps): React.JSX.Element {
         <Offcanvas.Body>
           <div className="d-grid gap-2">
             <button 
-              className="btn btn-outline-primary text-start"
-              onClick={() => {
-                // Since we only have one route for now, just close the sidebar
-                // In the future, this could navigate to different sections
-                handleSidebarClose()
-              }}
+              className={`btn text-start ${
+                location.pathname === '/dashboard' ? 'btn-primary' : 'btn-outline-primary'
+              }`}
+              onClick={() => navigateTo('/dashboard')}
             >
               <i className="bi bi-chat-square-text me-2"></i>
               Conversation Practice
+            </button>
+            
+            <button 
+              className={`btn text-start ${
+                location.pathname === '/vocabulary' ? 'btn-primary' : 'btn-outline-primary'
+              }`}
+              onClick={() => navigateTo('/vocabulary')}
+            >
+              <i className="bi bi-book me-2"></i>
+              Vocabulary Builder
             </button>
             
             {/* Placeholder for future features */}

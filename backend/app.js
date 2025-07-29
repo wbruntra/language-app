@@ -7,24 +7,11 @@ const path = require('path')
 const cookieSession = require('cookie-session')
 const secrets = require('./secrets')
 const { expressAuth } = require('simple-express-react-auth')
+const appFactory = require('./app_factory')
 
 require('dotenv').config()
 
-const app = express()
-
-// Middleware for logging requests
-app.use(logger('dev'))
-
-// Middleware
-app.use(express.json())
-
-app.use(
-  cookieSession({
-    name: 'language-session',
-    keys: [secrets.cookieSecret],
-    maxAge: 180 * 24 * 60 * 60 * 1000, // 180 days
-  }),
-)
+const app = appFactory()
 
 const { router: authRouter, requireAuth } = expressAuth.createAuth({
   password: secrets.authorizationCode,
@@ -33,7 +20,10 @@ const { router: authRouter, requireAuth } = expressAuth.createAuth({
 app.use('/api/auth', require('./routes/users'))
 
 const transcriptionsRouter = require('./routes/transcriptions')
+const vocabRouter = require('./routes/vocab')
+
 app.use('/api', requireAuth, transcriptionsRouter)
+app.use('/api/vocab', requireAuth, vocabRouter)
 
 app.use(function (req, res, next) {
   res.status(404).json({ error: 'Not Found' })

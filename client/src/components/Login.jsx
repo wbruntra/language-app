@@ -35,13 +35,13 @@ function Login() {
 
     if (isRegistering) {
       // Registration form
-      const result = await register(
-        formData.email.trim(),
-        formData.password,
-        formData.authCode.trim(),
-        formData.firstName.trim(),
-        formData.lastName.trim(),
-      )
+      const result = await register({
+        email: formData.email.trim(),
+        password: formData.password,
+        authCode: formData.authCode.trim(),
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+      })
 
       if (result.success) {
         setIsRegistering(false)
