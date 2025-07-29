@@ -42,6 +42,7 @@
     "@config": "./config.js",
     "@db_connection": "./db_connection.js",
     "@secrets": "./secrets.js",
-    "@lib": "./lib"
+    "@lib": "./lib",
+    "@data": "./data"
   }
 }

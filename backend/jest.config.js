@@ -12,6 +12,7 @@ module.exports = {
     '^\\@config$': '<rootDir>/config.js',
     '^\\@db_connection$': '<rootDir>/db_connection.js',
     '^\\@secrets$': '<rootDir>/secrets.js',
-    '^\\@lib/(.*)$': '<rootDir>/lib/$1'
+    '^\\@lib/(.*)$': '<rootDir>/lib/$1',
+    '^\\@data/(.*)$': '<rootDir>/data/$1'
 },
 }
