@@ -129,6 +129,7 @@ export interface LanguageHelperState {
 export interface RootState {
   user: UserState;
   languageHelper: LanguageHelperState;
+  tabooGame: import('../store/tabooGameSlice').TabooGameState;
 }
 
 // API types
@@ -173,10 +174,6 @@ export interface TranscriptionInputProps {
 
 export interface NavbarProps {
   onLanguageChange: (language: LanguageCode) => void;
-}
-
-export interface DashboardProps {
-  selectedLanguage: LanguageCode;
 }
 
 export interface ProtectedRouteProps {

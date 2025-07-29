@@ -4,13 +4,12 @@ import Login from './components/Login'
 import MainLayout from './components/MainLayout'
 import Dashboard from './components/Dashboard'
 import Vocabulary from './components/Vocabulary'
+import TabooGame from './components/TabooGame'
 import ProtectedRoute from './components/ProtectedRoute'
 import { useUser } from './hooks/useUser'
-import { useLanguageConfig } from './hooks/useLanguageHelper'
 
 function App(): React.JSX.Element {
   const { isAuthenticated, authChecked } = useUser()
-  const { selectedLanguage } = useLanguageConfig()
 
   // Show loading while checking auth status
   if (!authChecked) {
@@ -51,11 +50,15 @@ function App(): React.JSX.Element {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route 
             path="dashboard" 
-            element={<Dashboard selectedLanguage={selectedLanguage} />} 
+            element={<Dashboard />} 
           />
           <Route 
             path="vocabulary" 
             element={<Vocabulary />} 
+          />
+          <Route 
+            path="taboo" 
+            element={<TabooGame />} 
           />
         </Route>
         

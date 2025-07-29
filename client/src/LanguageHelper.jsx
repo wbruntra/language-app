@@ -691,13 +691,8 @@ export function LanguageSelector({ selectedLanguage, onLanguageChange }) {
   const [showDropdown, setShowDropdown] = useState(false)
   const { languages } = useLanguageHelper()
 
-  // Filter languages for the selector (matching what's currently shown)
-  const availableLanguages = {
-    spanish: languages.spanish,
-    french: languages.french,
-    german: languages.german,
-    english: languages.english,
-  }
+  // Use the centralized language configuration
+  const availableLanguages = languages
 
   const currentLanguage = availableLanguages[selectedLanguage] || availableLanguages.spanish
 

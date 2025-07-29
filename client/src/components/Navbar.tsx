@@ -25,9 +25,7 @@ function Navbar({ onLanguageChange }: NavbarProps): React.JSX.Element {
   const [showSidebar, setShowSidebar] = useState(false)
 
   const handleTtsToggle = (): void => {
-    const newTtsEnabled = !ttsEnabled
-    dispatch(setTtsEnabled(newTtsEnabled))
-    localStorage.setItem('languageHelperTtsEnabled', newTtsEnabled.toString())
+    dispatch(setTtsEnabled(!ttsEnabled)) // This now automatically persists to localStorage
   }
 
   const handleSidebarClose = () => setShowSidebar(false)
@@ -114,6 +112,16 @@ function Navbar({ onLanguageChange }: NavbarProps): React.JSX.Element {
             >
               <i className="bi bi-book me-2"></i>
               Vocabulary Builder
+            </button>
+            
+            <button 
+              className={`btn text-start ${
+                location.pathname === '/taboo' ? 'btn-primary' : 'btn-outline-primary'
+              }`}
+              onClick={() => navigateTo('/taboo')}
+            >
+              <i className="bi bi-puzzle me-2"></i>
+              Taboo Game
             </button>
             
             {/* Placeholder for future features */}

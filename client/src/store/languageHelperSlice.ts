@@ -9,6 +9,27 @@ import type {
   LanguageCode 
 } from '../types'
 
+// Load initial state from localStorage
+const loadInitialLanguage = (): LanguageCode => {
+  if (typeof window !== 'undefined') {
+    const savedLanguage = localStorage.getItem('languageHelperLanguage')
+    if (savedLanguage && ['spanish', 'french', 'german', 'italian', 'portuguese', 'english'].includes(savedLanguage)) {
+      return savedLanguage as LanguageCode
+    }
+  }
+  return 'spanish'
+}
+
+const loadInitialTtsEnabled = (): boolean => {
+  if (typeof window !== 'undefined') {
+    const savedTtsEnabled = localStorage.getItem('languageHelperTtsEnabled')
+    if (savedTtsEnabled !== null) {
+      return savedTtsEnabled === 'true'
+    }
+  }
+  return true
+}
+
 const initialState: LanguageHelperState = {
   // Recording
   isRecording: false,
@@ -32,7 +53,7 @@ const initialState: LanguageHelperState = {
   correctionExpanded: true,
 
   // TTS (Text-to-Speech) state
-  ttsEnabled: true, // Default to enabled
+  ttsEnabled: loadInitialTtsEnabled(), // Load from localStorage
   lastAudioUrl: null,
   isPlayingAudio: false,
 
@@ -50,7 +71,7 @@ const initialState: LanguageHelperState = {
   isFollowupRecording: false,
 
   // Language configuration
-  selectedLanguage: 'spanish',
+  selectedLanguage: loadInitialLanguage(), // Load from localStorage
   languages: {
     spanish: { name: 'Spanish', nativeName: 'Español', flag: '🇪🇸' },
     french: { name: 'French', nativeName: 'Français', flag: '🇫🇷' },
@@ -116,6 +137,10 @@ const languageHelperSlice = createSlice({
     // TTS actions
     setTtsEnabled: (state, action: PayloadAction<boolean>) => {
       state.ttsEnabled = action.payload
+      // Persist to localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('languageHelperTtsEnabled', action.payload.toString())
+      }
     },
     setLastAudioUrl: (state, action: PayloadAction<string | null>) => {
       state.lastAudioUrl = action.payload
@@ -161,6 +186,10 @@ const languageHelperSlice = createSlice({
     // Language actions
     setSelectedLanguage: (state, action: PayloadAction<LanguageCode>) => {
       state.selectedLanguage = action.payload
+      // Persist to localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('languageHelperLanguage', action.payload)
+      }
     },
 
     // Combined actions for common workflows

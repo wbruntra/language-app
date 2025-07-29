@@ -1,12 +1,10 @@
 import React from 'react'
 import LanguageHelper from '../LanguageHelper'
-import type { LanguageCode } from '../types'
+import { useLanguageConfig } from '../hooks/useLanguageHelper'
 
-interface DashboardProps {
-  selectedLanguage: LanguageCode;
-}
-
-function Dashboard({ selectedLanguage }: DashboardProps): React.JSX.Element {
+function Dashboard(): React.JSX.Element {
+  const { selectedLanguage } = useLanguageConfig()
+  
   return (
     <div className="container-fluid px-2 px-sm-3">
       <LanguageHelper selectedLanguage={selectedLanguage} />
