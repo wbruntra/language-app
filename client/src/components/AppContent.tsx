@@ -1,3 +1,4 @@
+import React from 'react'
 import { useUser } from '../hooks/useUser'
 import Login from '../components/Login'
 import LanguageHelper, { LanguageSelector } from '../LanguageHelper'
@@ -5,18 +6,20 @@ import { useEffect } from 'react'
 import { useLanguageConfig } from '../hooks/useLanguageHelper'
 import { useSelector, useDispatch } from 'react-redux'
 import { setTtsEnabled } from '../store/languageHelperSlice'
+import type { RootState, AppDispatch } from '../store'
+import type { LanguageCode } from '../types'
 
-function AppContent() {
+function AppContent(): React.JSX.Element {
   const { user, isAuthenticated, loading, logout } = useUser()
   const { selectedLanguage, currentLanguage, setSelectedLanguage } = useLanguageConfig()
-  const dispatch = useDispatch()
-  const ttsEnabled = useSelector(state => state.languageHelper.ttsEnabled)
+  const dispatch = useDispatch<AppDispatch>()
+  const ttsEnabled = useSelector((state: RootState) => state.languageHelper.ttsEnabled)
 
   // Initialize language from localStorage on app start
   useEffect(() => {
     const savedLanguage = localStorage.getItem('languageHelperLanguage')
     if (savedLanguage && savedLanguage !== selectedLanguage) {
-      setSelectedLanguage(savedLanguage)
+      setSelectedLanguage(savedLanguage as LanguageCode)
     }
 
     // Initialize TTS setting from localStorage
@@ -24,14 +27,14 @@ function AppContent() {
     if (savedTtsEnabled !== null) {
       dispatch(setTtsEnabled(savedTtsEnabled === 'true'))
     }
-  }, [])
+  }, [selectedLanguage, setSelectedLanguage, dispatch])
 
-  const handleLanguageChange = (language) => {
+  const handleLanguageChange = (language: LanguageCode): void => {
     setSelectedLanguage(language)
     localStorage.setItem('languageHelperLanguage', language)
   }
 
-  const handleTtsToggle = () => {
+  const handleTtsToggle = (): void => {
     const newTtsEnabled = !ttsEnabled
     dispatch(setTtsEnabled(newTtsEnabled))
     localStorage.setItem('languageHelperTtsEnabled', newTtsEnabled.toString())

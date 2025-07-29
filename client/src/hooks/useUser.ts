@@ -11,10 +11,12 @@ import {
   clearFormData,
   clearUser 
 } from '../store/userSlice'
+import type { RootState, AppDispatch } from '../store'
+import type { UserFormData, UseUserReturn } from '../types'
 
-export const useUser = () => {
-  const dispatch = useDispatch()
-  const { user, loading, error, successMessage, formData, isAuthenticated, authChecked } = useSelector(state => state.user)
+export const useUser = (): UseUserReturn => {
+  const dispatch = useDispatch<AppDispatch>()
+  const { user, loading, error, successMessage, formData, isAuthenticated, authChecked } = useSelector((state: RootState) => state.user)
 
   // Check authentication status on app load
   useEffect(() => {
@@ -23,7 +25,7 @@ export const useUser = () => {
     }
   }, [dispatch, authChecked])
 
-  const login = async (email, password) => {
+  const login = async (email: string, password: string) => {
     try {
       const result = await dispatch(loginUser({ email, password })).unwrap()
       return { success: true }
@@ -32,15 +34,9 @@ export const useUser = () => {
     }
   }
 
-  const register = async (email, password, authCode, firstName = '', lastName = '') => {
+  const register = async (userData: Parameters<UseUserReturn['register']>[0]) => {
     try {
-      const result = await dispatch(registerUser({ 
-        email, 
-        password, 
-        authCode, 
-        firstName, 
-        lastName 
-      })).unwrap()
+      const result = await dispatch(registerUser(userData)).unwrap()
       return { success: true }
     } catch (error) {
       return { success: false, error }
@@ -64,7 +60,7 @@ export const useUser = () => {
     dispatch(clearSuccess())
   }
 
-  const updateForm = (data) => {
+  const updateForm = (data: Partial<UserFormData>) => {
     dispatch(updateFormData(data))
   }
 
@@ -74,6 +70,10 @@ export const useUser = () => {
 
   const clearUserData = () => {
     dispatch(clearUser())
+  }
+
+  const checkAuthStatusFn = async () => {
+    return dispatch(checkAuthStatus())
   }
 
   return {
@@ -92,5 +92,6 @@ export const useUser = () => {
     updateFormData: updateForm,
     clearFormData: clearForm,
     clearUser: clearUserData,
+    checkAuthStatus: checkAuthStatusFn,
   }
 }

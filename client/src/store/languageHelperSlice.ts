@@ -1,6 +1,15 @@
-import { createSlice } from '@reduxjs/toolkit'
+import { createSlice, PayloadAction } from '@reduxjs/toolkit'
+import type { 
+  LanguageHelperState, 
+  ConversationEntry, 
+  Scenario, 
+  ConversationResult, 
+  ScenarioResult, 
+  FollowupEntry, 
+  LanguageCode 
+} from '../types'
 
-const initialState = {
+const initialState: LanguageHelperState = {
   // Recording
   isRecording: false,
   // audioLevel removed - now handled locally
@@ -57,24 +66,24 @@ const languageHelperSlice = createSlice({
   initialState,
   reducers: {
     // Recording and transcription actions
-    setTranscription: (state, action) => {
+    setTranscription: (state, action: PayloadAction<string>) => {
       state.transcription = action.payload
     },
-    setEditedTranscription: (state, action) => {
+    setEditedTranscription: (state, action: PayloadAction<string>) => {
       state.editedTranscription = action.payload
     },
-    appendToEditedTranscription: (state, action) => {
+    appendToEditedTranscription: (state, action: PayloadAction<string>) => {
       state.editedTranscription = state.editedTranscription 
         ? state.editedTranscription + ' ' + action.payload 
         : action.payload
     },
-    setError: (state, action) => {
+    setError: (state, action: PayloadAction<string | null>) => {
       state.error = action.payload
     },
-    setLoading: (state, action) => {
+    setLoading: (state, action: PayloadAction<boolean>) => {
       state.loading = action.payload
     },
-    setIsRecording: (state, action) => {
+    setIsRecording: (state, action: PayloadAction<boolean>) => {
       state.isRecording = action.payload
     },
     // setRecordingTime removed - now handled locally
@@ -82,75 +91,75 @@ const languageHelperSlice = createSlice({
     // setAudioLevel removed - now handled locally
 
     // Conversation actions
-    setConversationHistory: (state, action) => {
+    setConversationHistory: (state, action: PayloadAction<ConversationEntry[]>) => {
       state.conversationHistory = action.payload
     },
-    addToConversationHistory: (state, action) => {
+    addToConversationHistory: (state, action: PayloadAction<ConversationEntry>) => {
       state.conversationHistory.push(action.payload)
     },
-    setLastCorrection: (state, action) => {
+    setLastCorrection: (state, action: PayloadAction<string>) => {
       state.lastCorrection = action.payload
     },
-    setLastAlternative: (state, action) => {
+    setLastAlternative: (state, action: PayloadAction<string>) => {
       state.lastAlternative = action.payload
     },
-    setLastExplanation: (state, action) => {
+    setLastExplanation: (state, action: PayloadAction<string>) => {
       state.lastExplanation = action.payload
     },
-    setConversationLoading: (state, action) => {
+    setConversationLoading: (state, action: PayloadAction<boolean>) => {
       state.conversationLoading = action.payload
     },
-    setCorrectionExpanded: (state, action) => {
+    setCorrectionExpanded: (state, action: PayloadAction<boolean>) => {
       state.correctionExpanded = action.payload
     },
 
     // TTS actions
-    setTtsEnabled: (state, action) => {
+    setTtsEnabled: (state, action: PayloadAction<boolean>) => {
       state.ttsEnabled = action.payload
     },
-    setLastAudioUrl: (state, action) => {
+    setLastAudioUrl: (state, action: PayloadAction<string | null>) => {
       state.lastAudioUrl = action.payload
     },
-    setIsPlayingAudio: (state, action) => {
+    setIsPlayingAudio: (state, action: PayloadAction<boolean>) => {
       state.isPlayingAudio = action.payload
     },
 
     // Scenario actions
-    setScenarioLoading: (state, action) => {
+    setScenarioLoading: (state, action: PayloadAction<boolean>) => {
       state.scenarioLoading = action.payload
     },
-    setCurrentScenario: (state, action) => {
+    setCurrentScenario: (state, action: PayloadAction<Scenario | null>) => {
       state.currentScenario = action.payload
     },
-    setScenarioSuggestion: (state, action) => {
+    setScenarioSuggestion: (state, action: PayloadAction<string>) => {
       state.scenarioSuggestion = action.payload
     },
 
     // Follow-up question actions
-    setFollowupHistory: (state, action) => {
+    setFollowupHistory: (state, action: PayloadAction<FollowupEntry[]>) => {
       state.followupHistory = action.payload
     },
-    addToFollowupHistory: (state, action) => {
+    addToFollowupHistory: (state, action: PayloadAction<FollowupEntry>) => {
       state.followupHistory.push(action.payload)
     },
-    setFollowupLoading: (state, action) => {
+    setFollowupLoading: (state, action: PayloadAction<boolean>) => {
       state.followupLoading = action.payload
     },
-    setShowFollowupModal: (state, action) => {
+    setShowFollowupModal: (state, action: PayloadAction<boolean>) => {
       state.showFollowupModal = action.payload
     },
-    setFollowupQuestion: (state, action) => {
+    setFollowupQuestion: (state, action: PayloadAction<string>) => {
       state.followupQuestion = action.payload
     },
-    setFollowupTranscription: (state, action) => {
+    setFollowupTranscription: (state, action: PayloadAction<string>) => {
       state.followupTranscription = action.payload
     },
-    setIsFollowupRecording: (state, action) => {
+    setIsFollowupRecording: (state, action: PayloadAction<boolean>) => {
       state.isFollowupRecording = action.payload
     },
 
     // Language actions
-    setSelectedLanguage: (state, action) => {
+    setSelectedLanguage: (state, action: PayloadAction<LanguageCode>) => {
       state.selectedLanguage = action.payload
     },
 
@@ -186,7 +195,7 @@ const languageHelperSlice = createSlice({
     },
 
     // Update conversation result (for API responses)
-    updateConversationResult: (state, action) => {
+    updateConversationResult: (state, action: PayloadAction<ConversationResult>) => {
       const { conversationHistory, correction, alternative, explanation, audioUrl } = action.payload
       state.conversationHistory = conversationHistory
       state.lastCorrection = correction
@@ -199,7 +208,7 @@ const languageHelperSlice = createSlice({
     },
 
     // Update scenario result (for API responses)
-    updateScenarioResult: (state, action) => {
+    updateScenarioResult: (state, action: PayloadAction<ScenarioResult>) => {
       const { title, context, tips, conversationHistory } = action.payload
       state.currentScenario = { title, context, tips }
       state.conversationHistory = conversationHistory

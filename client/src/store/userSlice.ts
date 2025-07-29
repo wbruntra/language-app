@@ -1,38 +1,50 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
 import axios from 'axios'
+import type { 
+  User, 
+  UserFormData, 
+  UserState, 
+  AuthResponse, 
+  LoginRequest, 
+  RegisterRequest 
+} from '../types'
 
 // Async thunks for API calls
-export const checkAuthStatus = createAsyncThunk(
+export const checkAuthStatus = createAsyncThunk<AuthResponse, void, { rejectValue: string }>(
   'user/checkAuthStatus',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get('/api/auth/status')
+      const response = await axios.get<AuthResponse>('/api/auth/status')
       return response.data
-    } catch (error) {
+    } catch (error: any) {
       console.error('Auth status check failed:', error)
       return rejectWithValue(error.response?.data?.error || 'Auth status check failed')
     }
   }
 )
 
-export const loginUser = createAsyncThunk(
+export const loginUser = createAsyncThunk<AuthResponse, LoginRequest, { rejectValue: string }>(
   'user/loginUser',
   async ({ email, password }, { rejectWithValue }) => {
     try {
-      const response = await axios.post('/api/auth/login', { email, password })
+      const response = await axios.post<AuthResponse>('/api/auth/login', { email, password })
       return response.data
-    } catch (error) {
+    } catch (error: any) {
       const errorMsg = error.response?.data?.error || 'Login failed'
       return rejectWithValue(errorMsg)
     }
   }
 )
 
-export const registerUser = createAsyncThunk(
+export const registerUser = createAsyncThunk<
+  AuthResponse, 
+  Omit<RegisterRequest, 'auth_code' | 'first_name' | 'last_name'> & { authCode: string; firstName: string; lastName: string },
+  { rejectValue: string }
+>(
   'user/registerUser',
   async ({ email, password, authCode, firstName, lastName }, { rejectWithValue }) => {
     try {
-      const response = await axios.post('/api/auth/register', { 
+      const response = await axios.post<AuthResponse>('/api/auth/register', { 
         email, 
         password, 
         auth_code: authCode,
@@ -40,20 +52,20 @@ export const registerUser = createAsyncThunk(
         last_name: lastName
       })
       return response.data
-    } catch (error) {
+    } catch (error: any) {
       const errorMsg = error.response?.data?.error || 'Registration failed'
       return rejectWithValue(errorMsg)
     }
   }
 )
 
-export const logoutUser = createAsyncThunk(
+export const logoutUser = createAsyncThunk<{ success: boolean }, void, { rejectValue: string }>(
   'user/logoutUser',
   async (_, { rejectWithValue }) => {
     try {
       await axios.get('/api/auth/logout')
       return { success: true }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Logout failed:', error)
       // Still treat as success since we'll clear local state regardless
       return { success: true }
@@ -61,7 +73,7 @@ export const logoutUser = createAsyncThunk(
   }
 )
 
-const initialState = {
+const initialState: UserState = {
   user: null,
   loading: false,
   error: null,
@@ -87,7 +99,7 @@ const userSlice = createSlice({
     clearSuccess: (state) => {
       state.successMessage = null
     },
-    updateFormData: (state, action) => {
+    updateFormData: (state, action: PayloadAction<Partial<UserFormData>>) => {
       state.formData = { ...state.formData, ...action.payload }
     },
     clearFormData: (state) => {
@@ -130,7 +142,7 @@ const userSlice = createSlice({
         state.authChecked = true
         state.user = null
         state.isAuthenticated = false
-        state.error = action.payload
+        state.error = action.payload || 'Auth check failed'
       })
       
       // Login user
@@ -150,7 +162,7 @@ const userSlice = createSlice({
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.loading = false
-        state.error = action.payload
+        state.error = action.payload || 'Login failed'
         state.user = null
         state.isAuthenticated = false
       })
@@ -178,7 +190,7 @@ const userSlice = createSlice({
       })
       .addCase(registerUser.rejected, (state, action) => {
         state.loading = false
-        state.error = action.payload
+        state.error = action.payload || 'Registration failed'
       })
       
       // Logout user
