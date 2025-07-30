@@ -5,7 +5,7 @@ const { OpenAI } = require('openai')
 const ffmpeg = require('fluent-ffmpeg')
 const multer = require('multer')
 const { Readable, PassThrough } = require('stream')
-const { createTextToSpeech, calculateCost } = require('../utils/openAI/index')
+const { createTextToSpeech } = require('../utils/openAI/index')
 const { uploadData } = require('../linodeUtils')
 const config = require('@config')
 const AiUsage = require('../tables/ai_usage')
@@ -41,37 +41,24 @@ async function recordAiUsage(userId, usage, metadata = {}) {
   }
 
   try {
-    // Calculate cost if model is provided in metadata
-    let costData = null
-    if (metadata.model) {
-      costData = calculateCost(metadata.model, usage, metadata)
-    }
-
-    // Add cost information to metadata
-    const enrichedMetadata = {
-      ...metadata,
-      ...(costData && {
-        cost: costData.totalCost,
-        cost_breakdown: costData.breakdown,
-        token_breakdown: costData.tokenBreakdown,
-      }),
-    }
-
     await AiUsage.query().insert({
+      model: metadata.model || 'unknown',
+      usage: usage, // Store the raw usage object from OpenAI
       input_tokens: usage.prompt_tokens || usage.input_tokens || 0,
       cached_input_tokens: usage.prompt_tokens_details?.cached_tokens || 0,
       output_tokens: usage.completion_tokens || usage.output_tokens || 0,
       user_id: userId,
-      metadata: enrichedMetadata,
+      metadata: metadata,
+      // cost_usd will be automatically calculated in $beforeInsert
     })
 
     console.log('AI Usage recorded:', {
       userId,
+      model: metadata.model,
       input_tokens: usage.prompt_tokens || usage.input_tokens || 0,
       cached_input_tokens: usage.prompt_tokens_details?.cached_tokens || 0,
       output_tokens: usage.completion_tokens || usage.output_tokens || 0,
       total_tokens: usage.total_tokens || 0,
-      ...(costData && { estimated_cost: `$${costData.totalCost}` }),
     })
   } catch (error) {
     console.error('Failed to record AI usage:', error)
@@ -255,31 +242,26 @@ router.post('/transcribe', upload.single('audio'), async (req, res) => {
     if (transcription.usage) {
       await recordAiUsage(
         userId,
-        {
-          prompt_tokens: transcription.usage.input_tokens || 0,
-          completion_tokens: transcription.usage.output_tokens || 0,
-          total_tokens: transcription.usage.total_tokens || 0,
-        },
+        transcription.usage, // Pass the raw usage object from OpenAI
         {
           model: 'gpt-4o-mini-transcribe',
           operation: 'transcription',
           language: language,
           file_size_bytes: audioFile.size,
           audio_format: finalMimeType,
-          audio_tokens: transcription.usage.input_token_details?.audio_tokens || 0,
-          text_tokens: transcription.usage.input_token_details?.text_tokens || 0,
         },
       )
     } else {
       // Fallback for older API versions or if usage is not returned
       const estimatedTokens = transcription.text?.split(' ').length || 0
+      const fallbackUsage = {
+        prompt_tokens: 0,
+        completion_tokens: estimatedTokens,
+        total_tokens: estimatedTokens,
+      }
       await recordAiUsage(
         userId,
-        {
-          prompt_tokens: 0,
-          completion_tokens: estimatedTokens,
-          total_tokens: estimatedTokens,
-        },
+        fallbackUsage,
         {
           model: 'gpt-4o-mini-transcribe',
           operation: 'transcription',
@@ -435,20 +417,21 @@ Respond with a JSON object containing:
 
         // Record TTS usage (TTS is priced per character, not tokens)
         const characterCount = responseContent.response.length
+        const ttsUsage = {
+          prompt_tokens: 0,
+          completion_tokens: 0, // TTS doesn't have traditional tokens
+          total_tokens: 0,
+          characters: characterCount, // Store character count for TTS
+        }
         await recordAiUsage(
           userId,
+          ttsUsage,
           {
-            prompt_tokens: 0,
-            completion_tokens: 0, // TTS doesn't have traditional tokens
-            total_tokens: 0,
-          },
-          {
-            model: 'gpt-4o-mini-tts', // Assuming default TTS model
+            model: 'gpt-4o-mini-tts', // Use the latest TTS model
             operation: 'text_to_speech',
             language: language,
             voice: voice,
             character_count: characterCount,
-            text_length: characterCount,
           },
         )
 

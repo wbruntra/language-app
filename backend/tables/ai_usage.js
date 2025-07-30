@@ -3,9 +3,11 @@
  * BEGIN_DDL
 CREATE TABLE ai_usage (
     id INTEGER NOT NULL,
+    model varchar(255) NOT NULL,
     input_tokens INTEGER NOT NULL,
     cached_input_tokens INTEGER NOT NULL,
     output_tokens INTEGER NOT NULL,
+    cost_usd float,
     metadata json,
     user_id varchar(255) NOT NULL,
     created_at datetime,
@@ -20,7 +22,7 @@ CREATE TABLE ai_usage (
  */
 const { Model } = require('objection')
 const knex = require('@db_connection')
-
+const calculateCost = require('../utils/openAI/calculateCost')
 
 // Initialize knex connection for all models
 if (!Model.knex()) {
@@ -31,16 +33,19 @@ class AiUsage extends Model {
   static get tableName() {
     return 'ai_usage'
   }
-  
+
   static get jsonSchema() {
     return {
       type: 'object',
-      required: ['input_tokens', 'cached_input_tokens', 'output_tokens', 'user_id'],
+      required: ['model', 'input_tokens', 'cached_input_tokens', 'output_tokens', 'user_id'],
       properties: {
         id: { type: 'integer' },
+        model: { type: 'string', maxLength: 255 },
+        usage: { type: ['object', 'null'] },
         input_tokens: { type: 'integer' },
         cached_input_tokens: { type: 'integer' },
         output_tokens: { type: 'integer' },
+        cost_usd: { type: 'number', minimum: 0, multipleOf: 0.001 },
         metadata: { type: ['object', 'null'] },
         user_id: { type: 'string', maxLength: 255 },
         created_at: { type: 'string', format: 'date-time' },
@@ -70,6 +75,11 @@ class AiUsage extends Model {
     const now = new Date().toISOString()
     this.created_at = now
     this.updated_at = now
+
+    // Calculate cost based on model and usage data
+    if (this.model && this.usage) {
+      this.cost_usd = calculateCost(this.model, this.usage, this.metadata)
+    }
   }
 
   async $beforeUpdate(opt, context) {

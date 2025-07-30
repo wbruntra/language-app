@@ -24,6 +24,7 @@ CREATE TABLE user_info (
 -- * conversation_info.user_id (fk_conversation_info_user_id_user_info_id)
 -- * user_vocab_info.user_id (fk_user_vocab_info_user_id_user_info_id)
 -- * ai_usage.user_id (fk_ai_usage_user_id_user_info_id)
+-- * taboo_game_sessions.user_id (fk_taboo_game_sessions_user_id_user_info_id)
  * END_DDL
  */
 const { Model } = require('objection')

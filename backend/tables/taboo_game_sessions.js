@@ -22,23 +22,13 @@ CREATE TABLE taboo_game_sessions (
     created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    CONSTRAINT fk_taboo_sessions_card_id_taboo_cards_id FOREIGN KEY (taboo_card_id) REFERENCES taboo_cards(id),
-    CONSTRAINT fk_taboo_sessions_user_id_user_info_id FOREIGN KEY (user_id) REFERENCES user_info(id)
+    CONSTRAINT fk_taboo_game_sessions_user_id_user_info_id FOREIGN KEY (user_id) REFERENCES user_info(id),
+    CONSTRAINT fk_taboo_game_sessions_taboo_card_id_taboo_cards_id FOREIGN KEY (taboo_card_id) REFERENCES taboo_cards(id)
 );
 
 -- References:
--- * taboo_cards via taboo_card_id (fk_taboo_sessions_card_id_taboo_cards_id)
--- * user_info via user_id (fk_taboo_sessions_user_id_user_info_id)
-
--- Indexes:
--- * idx_taboo_sessions_user on (user_id)
--- * idx_taboo_sessions_card on (taboo_card_id)
--- * idx_taboo_sessions_language on (target_language)
--- * idx_taboo_sessions_status on (status)
--- * idx_taboo_sessions_user_language on (user_id, target_language)
--- * idx_taboo_sessions_user_status on (user_id, status)
--- * idx_taboo_sessions_created on (created_at)
--- * idx_taboo_sessions_score on (score)
+-- * user_info via user_id (fk_taboo_game_sessions_user_id_user_info_id)
+-- * taboo_cards via taboo_card_id (fk_taboo_game_sessions_taboo_card_id_taboo_cards_id)
  * END_DDL
  */
 require('module-alias/register')

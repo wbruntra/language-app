@@ -4,6 +4,7 @@
 CREATE TABLE taboo_cards (
     id varchar(255),
     answer_word varchar(255) NOT NULL,
+    language varchar(255) NOT NULL,
     key_words json NOT NULL,
     category varchar(255) DEFAULT 'general',
     difficulty varchar(255) DEFAULT 'medium',
@@ -17,11 +18,8 @@ CREATE TABLE taboo_cards (
     CONSTRAINT unique_taboo_answer_word UNIQUE (answer_word)
 );
 
--- Indexes:
--- * idx_taboo_cards_category on (category)
--- * idx_taboo_cards_difficulty on (difficulty)
--- * idx_taboo_cards_active on (is_active)
--- * idx_taboo_cards_answer on (answer_word)
+-- Referenced by:
+-- * taboo_game_sessions.taboo_card_id (fk_taboo_game_sessions_taboo_card_id_taboo_cards_id)
  * END_DDL
  */
 require('module-alias/register')
