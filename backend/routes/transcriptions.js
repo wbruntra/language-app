@@ -8,7 +8,7 @@ const { Readable, PassThrough } = require('stream')
 const { createTextToSpeech } = require('../utils/openAI/index')
 const { uploadData } = require('../linodeUtils')
 const config = require('@config')
-const AiUsage = require('../tables/ai_usage')
+const recordAiUsage = require('@utils/recordAiUsage')
 
 // Language configuration - centralized for easy maintenance
 const LANGUAGE_CONFIG = config.languages
@@ -32,39 +32,6 @@ const upload = multer({
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
-
-// Helper function to record AI usage
-async function recordAiUsage(userId, usage, metadata = {}) {
-  if (!userId || !usage) {
-    console.warn('Cannot record AI usage: missing userId or usage data')
-    return
-  }
-
-  try {
-    await AiUsage.query().insert({
-      model: metadata.model || 'unknown',
-      usage: usage, // Store the raw usage object from OpenAI
-      input_tokens: usage.prompt_tokens || usage.input_tokens || 0,
-      cached_input_tokens: usage.prompt_tokens_details?.cached_tokens || 0,
-      output_tokens: usage.completion_tokens || usage.output_tokens || 0,
-      user_id: userId,
-      metadata: metadata,
-      // cost_usd will be automatically calculated in $beforeInsert
-    })
-
-    console.log('AI Usage recorded:', {
-      userId,
-      model: metadata.model,
-      input_tokens: usage.prompt_tokens || usage.input_tokens || 0,
-      cached_input_tokens: usage.prompt_tokens_details?.cached_tokens || 0,
-      output_tokens: usage.completion_tokens || usage.output_tokens || 0,
-      total_tokens: usage.total_tokens || 0,
-    })
-  } catch (error) {
-    console.error('Failed to record AI usage:', error)
-    // Don't throw error to avoid breaking the main request
-  }
-}
 
 // Convert buffer to MP3 buffer
 const convertToMp3Buffer = (inputBuffer) => {

@@ -1,0 +1,34 @@
+{
+  "panels": [
+    {
+      "panelNumber": 1,
+      "description": "Alex is sitting on a park bench, enjoying the sunny day. He is relaxed, leaning back with his arms stretched out on the bench. The small dog is seen running around playfully in front of him.",
+      "fullPrompt": "The comic is drawn in a clean, black-and-white line art style typical of classic newspaper strips. The setting is a sunny park with a single bench and a few trees providing shade. Our main character is a young adult male named Alex, around 25 years old, wearing a casual t-shirt and jeans. He has short, wavy hair and a friendly demeanor. His facial expressions are very expressive, showing his emotions clearly. The secondary character is a small, playful dog with floppy ears and a wagging tail, adding a sense of liveliness to the scene. The dog has a collar and is very energetic, constantly in motion.. Alex is sitting on a park bench, enjoying the sunny day. He is relaxed, leaning back with his arms stretched out on the bench. The small dog is seen running around playfully in front of him..",
+      "imageUrl": "https://wbruntra.us-iad-1.linodeobjects.com/comics/image_252b4f91e2e66af77e48edfc991bcc5e.jpg",
+      "thumbnailUrl": "https://wbruntra.us-iad-1.linodeobjects.com/comics/thumbnails/image_252b4f91e2e66af77e48edfc991bcc5e.jpg"
+    },
+    {
+      "panelNumber": 2,
+      "description": "The dog suddenly stops and looks at a stick on the ground with excitement. It picks up the stick in its mouth and trots over to Alex, wagging its tail enthusiastically.",
+      "fullPrompt": "The comic is drawn in a clean, black-and-white line art style typical of classic newspaper strips. The setting is a sunny park with a single bench and a few trees providing shade. Our main character is a young adult male named Alex, around 25 years old, wearing a casual t-shirt and jeans. He has short, wavy hair and a friendly demeanor. His facial expressions are very expressive, showing his emotions clearly. The secondary character is a small, playful dog with floppy ears and a wagging tail, adding a sense of liveliness to the scene. The dog has a collar and is very energetic, constantly in motion.. The dog suddenly stops and looks at a stick on the ground with excitement. It picks up the stick in its mouth and trots over to Alex, wagging its tail enthusiastically..",
+      "imageUrl": "https://wbruntra.us-iad-1.linodeobjects.com/comics/image_102d7f883aa63a4ef20d6bc3d0f42f88.jpg",
+      "thumbnailUrl": "https://wbruntra.us-iad-1.linodeobjects.com/comics/thumbnails/image_102d7f883aa63a4ef20d6bc3d0f42f88.jpg"
+    },
+    {
+      "panelNumber": 3,
+      "description": "Alex stands up with a smile, takes the stick from the dog's mouth, and prepares to throw it. The dog crouches in anticipation, ready to chase after the stick.",
+      "fullPrompt": "The comic is drawn in a clean, black-and-white line art style typical of classic newspaper strips. The setting is a sunny park with a single bench and a few trees providing shade. Our main character is a young adult male named Alex, around 25 years old, wearing a casual t-shirt and jeans. He has short, wavy hair and a friendly demeanor. His facial expressions are very expressive, showing his emotions clearly. The secondary character is a small, playful dog with floppy ears and a wagging tail, adding a sense of liveliness to the scene. The dog has a collar and is very energetic, constantly in motion.. Alex stands up with a smile, takes the stick from the dog's mouth, and prepares to throw it. The dog crouches in anticipation, ready to chase after the stick..",
+      "imageUrl": "https://wbruntra.us-iad-1.linodeobjects.com/comics/image_370be5ab9ff972d214745ee7653d141d.jpg",
+      "thumbnailUrl": "https://wbruntra.us-iad-1.linodeobjects.com/comics/thumbnails/image_370be5ab9ff972d214745ee7653d141d.jpg"
+    },
+    {
+      "panelNumber": 4,
+      "description": "Alex throws the stick far into the park. The dog dashes off energetically in the direction of the thrown stick, while Alex watches, amused and happy.",
+      "fullPrompt": "The comic is drawn in a clean, black-and-white line art style typical of classic newspaper strips. The setting is a sunny park with a single bench and a few trees providing shade. Our main character is a young adult male named Alex, around 25 years old, wearing a casual t-shirt and jeans. He has short, wavy hair and a friendly demeanor. His facial expressions are very expressive, showing his emotions clearly. The secondary character is a small, playful dog with floppy ears and a wagging tail, adding a sense of liveliness to the scene. The dog has a collar and is very energetic, constantly in motion.. Alex throws the stick far into the park. The dog dashes off energetically in the direction of the thrown stick, while Alex watches, amused and happy..",
+      "imageUrl": "https://wbruntra.us-iad-1.linodeobjects.com/comics/image_6ea992fc596900aa2c8b3625a67bd0b5.jpg",
+      "thumbnailUrl": "https://wbruntra.us-iad-1.linodeobjects.com/comics/thumbnails/image_6ea992fc596900aa2c8b3625a67bd0b5.jpg"
+    }
+  ],
+  "totalPanels": 4,
+  "imageType": "comic_panels"
+}

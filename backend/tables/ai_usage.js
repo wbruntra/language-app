@@ -4,6 +4,7 @@
 CREATE TABLE ai_usage (
     id INTEGER NOT NULL,
     model varchar(255) NOT NULL,
+    usage json,
     input_tokens INTEGER NOT NULL,
     cached_input_tokens INTEGER NOT NULL,
     output_tokens INTEGER NOT NULL,
@@ -78,7 +79,8 @@ class AiUsage extends Model {
 
     // Calculate cost based on model and usage data
     if (this.model && this.usage) {
-      this.cost_usd = calculateCost(this.model, this.usage, this.metadata)
+      const costCalculation = calculateCost(this.model, this.usage, this.metadata)
+      this.cost_usd = costCalculation.totalCost
     }
   }
 

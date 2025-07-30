@@ -8,9 +8,9 @@ const {
   generateSampleDescription,
   calculateScore,
 } = require('../utils/openAI/tabooGameplay')
-const AiUsage = require('@tables/ai_usage')
 const TabooCards = require('@tables/taboo_cards')
 const TabooGameSessions = require('@tables/taboo_game_sessions')
+const recordAiUsage = require('@utils/recordAiUsage')
 
 const LANGUAGE_CONFIG = config.languages
 
@@ -141,21 +141,13 @@ router.post('/sessions/start', async (req, res) => {
     })
 
     // Track AI usage for translation
-    if (translationResult.usage && translationResult.cost) {
+    if (translationResult.usage) {
       try {
-        await AiUsage.query().insert({
-          user_id: userId,
-          input_tokens: translationResult.usage.prompt_tokens || 0,
-          cached_input_tokens: translationResult.usage.prompt_tokens_details?.cached_tokens || 0,
-          output_tokens: translationResult.usage.completion_tokens || 0,
-          metadata: {
-            model_used: 'gpt-4o-2024-08-06',
-            tokens_used: translationResult.usage.total_tokens || 0,
-            cost_usd: translationResult.cost,
-            request_type: 'taboo_session_start',
-            target_language: targetLanguage,
-            session_id: session.id,
-          },
+        await recordAiUsage(userId, translationResult.usage, {
+          model: 'gpt-4o-2024-08-06',
+          operation: 'taboo_session_start',
+          target_language: targetLanguage,
+          session_id: session.id,
         })
       } catch (usageError) {
         console.error('Failed to track AI usage:', usageError)
@@ -333,22 +325,14 @@ router.post('/sessions/:sessionId/submit', async (req, res) => {
     // Track AI usage
     if (totalUsage.total_tokens) {
       try {
-        await AiUsage.query().insert({
-          user_id: userId,
-          input_tokens: totalUsage.prompt_tokens || 0,
-          cached_input_tokens: totalUsage.prompt_tokens_details?.cached_tokens || 0,
-          output_tokens: totalUsage.completion_tokens || 0,
-          metadata: {
-            model_used: 'gpt-4o-2024-08-06',
-            tokens_used: totalUsage.total_tokens || 0,
-            cost_usd: totalCost,
-            request_type: 'taboo_session_submit',
-            target_language: session.target_language,
-            session_id: sessionId,
-            included_example: includeExample && isGameComplete,
-            submission_number: session.messages.length,
-            is_game_complete: isGameComplete
-          },
+        await recordAiUsage(userId, totalUsage, {
+          model: 'gpt-4o-2024-08-06',
+          operation: 'taboo_session_submit',
+          target_language: session.target_language,
+          session_id: sessionId,
+          included_example: includeExample && isGameComplete,
+          submission_number: session.messages.length,
+          is_game_complete: isGameComplete,
         })
       } catch (usageError) {
         console.error('Failed to track AI usage:', usageError)
@@ -600,19 +584,11 @@ router.post('/sessions/:sessionId/generate-example', async (req, res) => {
     // Track AI usage
     if (example.usage?.total_tokens) {
       try {
-        await AiUsage.query().insert({
-          user_id: userId,
-          input_tokens: example.usage.prompt_tokens || 0,
-          cached_input_tokens: example.usage.prompt_tokens_details?.cached_tokens || 0,
-          output_tokens: example.usage.completion_tokens || 0,
-          metadata: {
-            model_used: 'gpt-4o-2024-08-06',
-            tokens_used: example.usage.total_tokens || 0,
-            cost_usd: example.cost || 0,
-            request_type: 'taboo_generate_example',
-            target_language: session.target_language,
-            session_id: sessionId,
-          },
+        await recordAiUsage(userId, example.usage, {
+          model: 'gpt-4o-2024-08-06',
+          operation: 'taboo_generate_example',
+          target_language: session.target_language,
+          session_id: sessionId,
         })
       } catch (usageError) {
         console.error('Failed to track AI usage:', usageError)
@@ -742,20 +718,12 @@ router.post('/sessions/:sessionId/finish', async (req, res) => {
     // Track AI usage for example generation
     if (totalUsage.total_tokens) {
       try {
-        await AiUsage.query().insert({
-          user_id: userId,
-          input_tokens: totalUsage.prompt_tokens || 0,
-          cached_input_tokens: totalUsage.prompt_tokens_details?.cached_tokens || 0,
-          output_tokens: totalUsage.completion_tokens || 0,
-          metadata: {
-            model_used: 'gpt-4o-2024-08-06',
-            tokens_used: totalUsage.total_tokens || 0,
-            cost_usd: totalCost,
-            request_type: 'taboo_session_finish',
-            target_language: session.target_language,
-            session_id: sessionId,
-            included_example: includeExample,
-          },
+        await recordAiUsage(userId, totalUsage, {
+          model: 'gpt-4o-2024-08-06',
+          operation: 'taboo_session_finish',
+          target_language: session.target_language,
+          session_id: sessionId,
+          included_example: includeExample,
         })
       } catch (usageError) {
         console.error('Failed to track AI usage:', usageError)
@@ -874,20 +842,12 @@ router.post('/sessions/:sessionId/complete', async (req, res) => {
     // Track combined AI usage
     if (totalUsage.total_tokens) {
       try {
-        await AiUsage.query().insert({
-          user_id: userId,
-          input_tokens: totalUsage.prompt_tokens || 0,
-          cached_input_tokens: totalUsage.prompt_tokens_details?.cached_tokens || 0,
-          output_tokens: totalUsage.completion_tokens || 0,
-          metadata: {
-            model_used: 'gpt-4o-2024-08-06',
-            tokens_used: totalUsage.total_tokens || 0,
-            cost_usd: totalCost,
-            request_type: 'taboo_session_complete',
-            target_language: session.target_language,
-            session_id: sessionId,
-            included_example: includeExample !== false,
-          },
+        await recordAiUsage(userId, totalUsage, {
+          model: 'gpt-4o-2024-08-06',
+          operation: 'taboo_session_complete',
+          target_language: session.target_language,
+          session_id: sessionId,
+          included_example: includeExample !== false,
         })
       } catch (usageError) {
         console.error('Failed to track AI usage:', usageError)

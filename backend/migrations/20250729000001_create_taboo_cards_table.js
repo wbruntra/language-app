@@ -10,6 +10,8 @@ exports.up = function (knex) {
     table.json('metadata') // Additional data like tags, source, etc.
     table.boolean('is_active').defaultTo(true) // For enabling/disabling cards
     table.integer('usage_count').defaultTo(0) // Track how often this card is used
+    table.integer('upvotes').defaultTo(0) // Track upvotes for quality control
+    table.integer('downvotes').defaultTo(0) // Track downvotes for quality control
 
     table.timestamps(true, true) // created_at and updated_at
 
@@ -18,7 +20,6 @@ exports.up = function (knex) {
     table.index(['difficulty'], 'idx_taboo_cards_difficulty')
     table.index(['is_active'], 'idx_taboo_cards_active')
     table.index(['answer_word'], 'idx_taboo_cards_answer')
-    table.unique(['answer_word'], 'unique_taboo_answer_word')
   })
 }
 
