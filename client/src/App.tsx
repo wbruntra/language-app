@@ -5,6 +5,7 @@ import MainLayout from './components/MainLayout'
 import Dashboard from './components/Dashboard'
 import Vocabulary from './components/Vocabulary'
 import TabooGame from './components/TabooGame'
+import Stories from './components/Stories'
 import ProtectedRoute from './components/ProtectedRoute'
 import { useUser } from './hooks/useUser'
 
@@ -59,6 +60,14 @@ function App(): React.JSX.Element {
           <Route 
             path="taboo" 
             element={<TabooGame />} 
+          />
+          <Route 
+            path="stories" 
+            element={<Stories />} 
+          />
+          <Route 
+            path="stories/:storyId" 
+            element={<Stories />} 
           />
         </Route>
         

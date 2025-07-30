@@ -124,6 +124,16 @@ function Navbar({ onLanguageChange }: NavbarProps): React.JSX.Element {
               Taboo Game
             </button>
             
+            <button 
+              className={`btn text-start ${
+                location.pathname === '/stories' ? 'btn-primary' : 'btn-outline-primary'
+              }`}
+              onClick={() => navigateTo('/stories')}
+            >
+              <i className="bi bi-book me-2"></i>
+              Stories
+            </button>
+            
             {/* Placeholder for future features */}
             <div className="text-muted small mt-3 px-2">
               <em>More features coming soon...</em>
