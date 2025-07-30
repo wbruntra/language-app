@@ -2,7 +2,7 @@ import React from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import axios from 'axios'
 import type { RootState, AppDispatch } from '../store'
-import VoiceInput from './VoiceInput'
+import UnifiedTextInput from './UnifiedTextInput'
 import {
   startGame,
   gameStarted,
@@ -73,10 +73,6 @@ function TabooGame(): React.JSX.Element {
 
   const handleResetGame = () => {
     dispatch(resetGame())
-  }
-
-  const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    dispatch(setUserDescription(e.target.value))
   }
 
   const handleSubmitDescription = async () => {
@@ -272,35 +268,24 @@ function TabooGame(): React.JSX.Element {
                           </h6>
                         </div>
                         <div className="card-body">
-                          <textarea
-                            className="form-control mb-3"
-                            rows={6}
-                            placeholder={`Describe "${currentSession.answerWord}" in ${currentLanguage.name}...`}
+                          <UnifiedTextInput
                             value={userDescription}
-                            onChange={handleDescriptionChange}
+                            onChange={(value) => dispatch(setUserDescription(value))}
+                            onVoiceTranscription={handleVoiceTranscription}
+                            onVoiceError={handleVoiceError}
+                            placeholder={`Describe "${currentSession.answerWord}" in ${currentLanguage.name}...`}
+                            rows={6}
                             disabled={submittingDescription}
+                            language={selectedLanguage}
+                            showVoiceControls={true}
+                            showVisualization={true}
+                            showKeyboardShortcuts={true}
+                            showCharacterCount={true}
+                            className="mb-3"
                           />
                           
-                          {/* Voice Input and Submit Controls */}
-                          <div className="d-flex justify-content-between align-items-start gap-3">
-                            <div className="flex-grow-1">
-                              <small className="text-muted d-block mb-2">
-                                {userDescription.length} characters
-                              </small>
-                              
-                              {/* Voice Input Component */}
-                              <VoiceInput
-                                onTranscriptionReceived={handleVoiceTranscription}
-                                onError={handleVoiceError}
-                                language={selectedLanguage}
-                                disabled={submittingDescription}
-                                variant="icon"
-                                showControls={false}
-                                showVisualization={false}
-                                placeholder="Use microphone to add to description"
-                              />
-                            </div>
-                            
+                          {/* Submit Controls */}
+                          <div className="d-flex justify-content-end">
                             <button
                               className="btn btn-success"
                               onClick={handleSubmitDescription}
@@ -315,8 +300,8 @@ function TabooGame(): React.JSX.Element {
                                 </>
                               ) : (
                                 <>
-                                  <i className="bi bi-check-circle me-2"></i>
-                                  {submissionHistory.length > 0 ? 'Try Again' : 'Submit'}
+                                  <i className="bi bi-send me-2"></i>
+                                  Submit Description
                                 </>
                               )}
                             </button>

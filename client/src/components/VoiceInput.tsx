@@ -7,7 +7,7 @@ interface VoiceInputProps {
   onError?: (error: string) => void
   language?: string
   disabled?: boolean
-  variant?: 'button' | 'icon' | 'mini'
+  variant?: 'button' | 'icon' | 'mini' | 'dual-button'
   className?: string
   style?: React.CSSProperties
   showControls?: boolean
@@ -249,6 +249,54 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
     const isLoading = state.isTranscribing
     const isActive = state.isRecording
 
+    // Handle dual-button variant (like TranscriptionInput)
+    if (variant === 'dual-button') {
+      if (!isActive) {
+        // Show microphone button when not recording
+        return (
+          <button
+            type="button"
+            className={`btn btn-outline-primary btn-sm rounded-circle d-flex align-items-center justify-content-center ${className}`}
+            style={{ width: '40px', height: '40px', ...style }}
+            onClick={startRecording}
+            disabled={disabled || isLoading}
+            title={defaultButtonText.start}
+          >
+            <i className="bi bi-mic"></i>
+          </button>
+        )
+      } else {
+        // Show both stop (checkmark) and cancel (X) buttons when recording
+        return (
+          <div className="d-flex align-items-center gap-2">
+            {/* Stop/Send recording */}
+            <button
+              type="button"
+              className="btn btn-success btn-sm rounded-circle d-flex align-items-center justify-content-center"
+              style={{ width: '40px', height: '40px' }}
+              onClick={stopRecording}
+              disabled={disabled || isLoading}
+              title="Stop and transcribe recording"
+            >
+              <i className="bi bi-check-lg"></i>
+            </button>
+            
+            {/* Cancel recording */}
+            <button
+              type="button"
+              className="btn btn-outline-danger btn-sm rounded-circle d-flex align-items-center justify-content-center"
+              style={{ width: '40px', height: '40px' }}
+              onClick={cancelRecording}
+              disabled={disabled}
+              title="Cancel recording"
+            >
+              <i className="bi bi-x-lg"></i>
+            </button>
+          </div>
+        )
+      }
+    }
+
     if (variant === 'mini') {
       return (
         <button
@@ -296,7 +344,7 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
   }
 
   const renderControls = () => {
-    if (!showControls || variant === 'mini') return null
+    if (!showControls || variant === 'mini' || variant === 'dual-button') return null
 
     return (
       <div className="d-flex gap-2 align-items-center">
