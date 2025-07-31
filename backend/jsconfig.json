@@ -28,6 +28,9 @@
       ],
       "@data/*": [
         "data/*"
+      ],
+      "@linodeUtils": [
+        "linodeUtils.js"
       ]
     }
   }

@@ -18,6 +18,7 @@ const bareAliases = {
   '@secrets': 'secrets.js',
   '@lib': 'lib',
   '@data': 'data',
+  '@linodeUtils': 'linodeUtils.js',
 }
 
 const aliasesRelativePath = Object.fromEntries(

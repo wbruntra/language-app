@@ -13,6 +13,7 @@ module.exports = {
     '^\\@db_connection$': '<rootDir>/db_connection.js',
     '^\\@secrets$': '<rootDir>/secrets.js',
     '^\\@lib/(.*)$': '<rootDir>/lib/$1',
-    '^\\@data/(.*)$': '<rootDir>/data/$1'
+    '^\\@data/(.*)$': '<rootDir>/data/$1',
+    '^\\@linodeUtils$': '<rootDir>/linodeUtils.js'
 },
 }

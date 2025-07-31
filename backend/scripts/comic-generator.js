@@ -32,7 +32,11 @@ async function generateFullComic(language = 'English', category = 'comic') {
       console.log(`   Generating scene ${index + 1}/4...`)
 
       // Add art style to the scene description
-      const fullPrompt = `Clean, black-and-white line art style illustration. ${sceneDesc}`
+      // const artStyle = 'Infographic cartoon style.'
+      // const artStyle = 'Clean, black-and-white line art style illustration.'
+      const artStyle = 'Flat color cartoon style.'
+
+      const fullPrompt = `${artStyle} ${sceneDesc}`
 
       const result = await saveImage({
         prompt: fullPrompt,
@@ -152,6 +156,4 @@ if (require.main === module) {
 
 module.exports = {
   generateFullComic,
-  generateComicHTML,
-  generateComicWithPreview,
 }

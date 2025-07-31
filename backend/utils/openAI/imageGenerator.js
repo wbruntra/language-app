@@ -1,9 +1,12 @@
+require('module-alias/register') // Initialize module-alias
+
 const { OpenAI } = require('openai')
 const fs = require('fs')
 const path = require('path')
-const { uploadData } = require('../../linodeUtils')
+const { uploadData } = require('@linodeUtils')
 const sharp = require('sharp')
 const crypto = require('crypto')
+const StoryInfo = require('@tables/story_info')
 
 const md5 = (str) => {
   return crypto.createHash('md5').update(str).digest('hex')
@@ -41,24 +44,17 @@ const generateImage = async ({
     quality,
     output_format,
   })
-  return img
+
+  const imageBuffer = Buffer.from(img.data[0].b64_json, 'base64')
+  return imageBuffer
 }
 
 const saveImage = async ({
-  prompt,
+  imageBuffer,
+  fileName,
   linodeKey = 'generated_images/',
   withThumbnail = true,
-  quality,
 }) => {
-  const fileName = suggestFileName(prompt)
-  console.log(`Generated file name: ${fileName}`)
-
-  const result = await generateImage({
-    prompt,
-    quality,
-  })
-  const imageBuffer = Buffer.from(result.data[0].b64_json, 'base64')
-
   // Upload the full-size image
   const uploadResult = await uploadData({
     dataBuffer: imageBuffer,
@@ -131,8 +127,7 @@ Requirements:
         type: 'json_schema',
         json_schema: {
           name: 'story_idea_response',
-          description:
-            'A simple 4-scene story idea with scene descriptions',
+          description: 'A simple 4-scene story idea with scene descriptions',
           strict: true,
           schema: {
             type: 'object',
@@ -165,7 +160,13 @@ Requirements:
                 description: 'Estimated comprehension level',
               },
             },
-            required: ['storyDescription', 'sceneDescriptions', 'theme', 'characterType', 'difficulty'],
+            required: [
+              'storyDescription',
+              'sceneDescriptions',
+              'theme',
+              'characterType',
+              'difficulty',
+            ],
             additionalProperties: false,
           },
         },
@@ -190,16 +191,138 @@ Requirements:
   }
 }
 
+/**
+ * Generate a complete comic story with AI-generated images
+ * @param {string} language - The target language for the comic
+ * @param {string} category - Category for the comic (default: 'comic')
+ * @returns {Promise<Object>} The created story record
+ */
+async function generateFullComic(language = 'English', category = 'comic') {
+  console.log('🎨 Starting comic generation...')
+  console.time('Total Comic Generation Time')
+
+  try {
+    // Step 1: Generate the story idea
+    console.log('📝 Generating story idea...')
+    const storyIdea = await generateComicIdea()
+
+    if (!storyIdea.success) {
+      throw new Error(`Failed to generate story idea: ${storyIdea.error}`)
+    }
+
+    console.log(`✅ Generated story idea: "${storyIdea.theme}"`)
+    console.log(`   Character type: ${storyIdea.characterType}`)
+    console.log(`   Difficulty: ${storyIdea.difficulty}`)
+
+    // Step 2: Generate images for each scene
+    console.log('🖼️  Generating scene images...')
+    const imagePromises = storyIdea.sceneDescriptions.map(async (sceneDesc, index) => {
+      console.log(`   Generating scene ${index + 1}/4...`)
+
+      // Add art style to the scene description
+      // const artStyle = 'Infographic cartoon style.'
+      // const artStyle = 'Clean, black-and-white line art style illustration.'
+      const artStyle = 'Flat color cartoon style.'
+
+      const fullPrompt = `${artStyle} ${sceneDesc}`
+
+      const imageBuffer = await generateImage({
+        prompt: fullPrompt,
+        quality: 'low',
+      })
+
+      const fileName = suggestFileName(fullPrompt)
+
+      const result = await saveImage({
+        imageBuffer,
+        linodeKey: 'comics/',
+        withThumbnail: true,
+        fileName,
+      })
+
+      return {
+        panelNumber: index + 1,
+        description: sceneDesc,
+        fullPrompt: fullPrompt,
+        imageUrl: result.fullImage.url,
+        thumbnailUrl: result.thumbnail?.url || null,
+      }
+    })
+
+    const panelImages = await Promise.all(imagePromises)
+    console.log('✅ All scene images generated successfully')
+
+    // Step 3: Prepare data for database storage
+    const storyData = {
+      prompt: {
+        storyDescription: storyIdea.storyDescription,
+        sceneDescriptions: storyIdea.sceneDescriptions,
+        theme: storyIdea.theme,
+        characterType: storyIdea.characterType,
+        generatedAt: new Date().toISOString(),
+      },
+      language: language,
+      images: {
+        panels: panelImages,
+        totalPanels: 4,
+        imageType: 'comic_panels',
+      },
+      category: category,
+      difficulty: storyIdea.difficulty,
+      description: `A 4-scene story about ${storyIdea.theme} featuring ${storyIdea.characterType}`,
+      metadata: {
+        generationMethod: 'ai_generated',
+        model: 'gpt-4o-2024-08-06',
+        imageModel: 'gpt-image-1',
+        panelCount: 4,
+      },
+    }
+
+    // Step 4: Save to database
+    console.log('💾 Saving comic to database...')
+    const savedStory = await StoryInfo.query().insert(storyData)
+    console.log(`✅ Comic saved with ID: ${savedStory.id}`)
+
+    console.timeEnd('Total Comic Generation Time')
+
+    return savedStory
+  } catch (error) {
+    console.error('❌ Error generating comic:', error)
+    throw error
+  }
+}
+
 const test = async () => {
+  
+  console.time('Test Execution Time')
+  
   const linodeKey = 'generated_images/'
 
-  console.time('Test Execution Time')
+  const prompt = 'A simple image of a cat sitting on a windowsill, looking outside at a sunny day.'
+  const quality = 'low'
 
-  let idea
-  idea = await generateComicIdea()
+  const fileName = suggestFileName(prompt)
+  console.log(`Generated file name: ${fileName}`)
 
+  const imageBuffer = await generateImage({
+    prompt,
+    quality,
+  })
 
-  console.log('Generated comic idea:', JSON.stringify(idea, null, 2))
+  console.log('Image generated successfully')
+  const savedImage = await saveImage({
+    imageBuffer,
+    fileName,
+    linodeKey,
+    withThumbnail: false,
+  })
+
+  console.log('Image saved successfully:', savedImage)
+
+  // let idea
+  // idea = await generateComicIdea()
+
+  // console.log('Generated comic idea:', JSON.stringify(idea, null, 2))
 
   console.timeEnd('Test Execution Time')
 

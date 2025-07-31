@@ -1,0 +1,67 @@
+[
+  {
+    "name": "Mochi",
+    "appearance": "Chubby cat with pointy ears, a long tail, and a smug expression.",
+    "description": "Mochi is lazy, clever, and always looking for the easiest way to get food or attention. Often ends up in places it shouldn't be."
+  },
+  {
+    "name": "Tariq",
+    "appearance": "Young man with short curly hair, a hoodie, and cargo pants.",
+    "description": "Tariq is laid-back and observant. He tends to notice things others miss and is usually the calm center when things go wrong around him."
+  },
+  {
+    "name": "Aya",
+    "appearance": "Teenage girl with long straight hair, wearing a school uniform and headphones.",
+    "description": "Aya is quiet, artistic, and often seen sketching or daydreaming. She’s expressive in subtle ways and reacts to situations with understated humor."
+  },
+  {
+    "name": "Mr. Blanco",
+    "appearance": "Middle-aged man with a bald head, a tie, and a coffee mug in hand.",
+    "description": "Mr. Blanco is a well-meaning but distracted adult who’s often in a rush or slightly confused. Great for office, school, or errand-based scenes."
+  },
+  {
+    "name": "Lena",
+    "appearance": "Young woman with a ponytail, wearing a hoodie and jeans.",
+    "description": "Lena is curious and energetic. She's often seen trying new things or getting into funny situations due to her enthusiasm."
+  },
+  {
+    "name": "Max",
+    "appearance": "Tall man with short messy hair, glasses, and a button-up shirt.",
+    "description": "Max is a thoughtful, slightly awkward character who tends to overthink simple things. He often plays the straight man in funny scenarios."
+  },
+  {
+    "name": "Abuela Rosa",
+    "appearance": "Elderly woman with a bun hairstyle, round glasses, and a patterned dress.",
+    "description": "Abuela Rosa is wise, calm, and always prepared. She’s often the one who quietly solves problems or surprises others with clever tricks."
+  },
+  {
+    "name": "Sam",
+    "appearance": "Child with short hair, a striped t-shirt, and shorts.",
+    "description": "Sam is playful and curious, often exploring, asking questions, or causing small, harmless mischief in everyday situations."
+  },
+  {
+    "name": "Nico",
+    "appearance": "Young man with a cap turned backward, sneakers, and a backpack.",
+    "description": "Nico is sporty and active, always running late or juggling too many things. He’s expressive and easy to read through body language."
+  },
+  {
+    "name": "Kiki",
+    "appearance": "Small dog with floppy ears and a big round nose.",
+    "description": "Kiki is expressive and clever, often stealing the show or unintentionally causing chaos. Great for slapstick or reaction-based panels."
+  },
+  {
+    "name": "Amy",
+    "appearance": "Young girl with pigtails, a dress with polka dots, and big round shoes.",
+    "description": "Amy is imaginative and full of questions. She's curious about everything and often leads others into unexpected little adventures."
+  },
+  {
+    "name": "Mom (Elena)",
+    "appearance": "Woman with shoulder-length hair, wearing a cardigan and slacks",
+    "description": "Elena is practical, kind, and often multitasking. She’s good at managing chaos but sometimes just wants a moment of peace."
+  },
+  {
+    "name": "Dad (Jorge)",
+    "appearance": "Man with a beard, a baseball cap, and jeans",
+    "description": "Jorge is easygoing and supportive, but a little absent-minded. He often tries to help and ends up needing help himself."
+  }
+]
