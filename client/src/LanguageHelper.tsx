@@ -93,7 +93,7 @@ function LanguageHelper({ selectedLanguage }: LanguageHelperProps): React.JSX.El
     actions.setError('')
 
     try {
-      const response = await axios.post('/api/conversation', {
+      const response = await axios.post('/api/conversations/message', {
         userMessage: userMessage,
         conversationHistory: conversationHistory, // Send original history (without the user message we just added)
         language: currentSelectedLanguage,
@@ -125,7 +125,7 @@ function LanguageHelper({ selectedLanguage }: LanguageHelperProps): React.JSX.El
     actions.setError('')
 
     try {
-      const response = await axios.post('/api/scenario', {
+      const response = await axios.post('/api/conversations/scenario', {
         suggestion: scenarioSuggestion.trim() || undefined,
         language: currentSelectedLanguage,
       })
@@ -183,7 +183,7 @@ function LanguageHelper({ selectedLanguage }: LanguageHelperProps): React.JSX.El
         explanation: lastExplanation,
       }
 
-      const response = await axios.post('/api/followup', {
+      const response = await axios.post('/api/conversations/followup', {
         userQuestion: questionText.trim(),
         correctionContext: correctionContext,
         followupHistory: followupHistory,

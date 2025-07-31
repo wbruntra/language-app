@@ -20,11 +20,13 @@ const { router: authRouter, requireAuth } = expressAuth.createAuth({
 app.use('/api/auth', require('./routes/users'))
 
 const transcriptionsRouter = require('./routes/transcriptions')
+const conversationsRouter = require('./routes/conversations')
 const vocabRouter = require('./routes/vocab')
 const tabooRouter = require('./routes/taboo')
 const storiesRouter = require('./routes/stories')
 
-app.use('/api', requireAuth, transcriptionsRouter)
+app.use('/api', requireAuth, transcriptionsRouter) // keeps /transcribe and health
+app.use('/api/conversations', requireAuth, conversationsRouter) // new routes
 app.use('/api/vocab', requireAuth, vocabRouter)
 app.use('/api/taboo', requireAuth, tabooRouter)
 app.use('/api/stories', requireAuth, storiesRouter)
