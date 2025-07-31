@@ -1,11 +1,27 @@
 // To run this code you need to install the following dependencies:
-// npm install @google/genai mime
+// npm install @google/genai fluent-ffmpeg
 
 const { GoogleGenAI } = require('@google/genai')
-const mime = require('mime')
 const { uploadData } = require('../../linodeUtils')
 const ffmpeg = require('fluent-ffmpeg')
 const { Readable } = require('stream')
+
+/**
+ * Simple MIME type detection for our use case
+ * @param {string} filename 
+ * @returns {string}
+ */
+function getMimeType(filename) {
+  const ext = filename.toLowerCase().split('.').pop()
+  const mimeTypes = {
+    'mp3': 'audio/mpeg',
+    'wav': 'audio/wav',
+    'pcm': 'audio/pcm',
+    'mp4': 'audio/mp4',
+    'ogg': 'audio/ogg'
+  }
+  return mimeTypes[ext] || 'application/octet-stream'
+}
 
 /**
  * Converts PCM audio data to MP3 format using FFmpeg
