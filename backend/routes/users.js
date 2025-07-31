@@ -10,6 +10,8 @@ router.get('/status', async (req, res) => {
       // Fetch user details from database
       const user = await UserInfo.query().findById(req.session.user_id)
       if (user) {
+        // Keep session is_admin in sync in case it changes server-side
+        req.session.is_admin = !!user.is_admin
         res.status(200).json({
           status: 'Authenticated',
           authenticated: true,
@@ -18,6 +20,7 @@ router.get('/status', async (req, res) => {
             email: user.email,
             first_name: user.first_name,
             last_name: user.last_name,
+            is_admin: !!user.is_admin,
           },
         })
       } else {
@@ -82,6 +85,7 @@ router.post('/login', async (req, res) => {
     if (authenticatedUser) {
       req.session.authenticated = true
       req.session.user_id = authenticatedUser.id
+      req.session.is_admin = !!authenticatedUser.is_admin
       res.status(200).json({
         message: 'Login successful',
         user_id: authenticatedUser.id,
@@ -91,6 +95,7 @@ router.post('/login', async (req, res) => {
           email: authenticatedUser.email,
           first_name: authenticatedUser.first_name,
           last_name: authenticatedUser.last_name,
+          is_admin: !!authenticatedUser.is_admin,
         },
       })
     } else {

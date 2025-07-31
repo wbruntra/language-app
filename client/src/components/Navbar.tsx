@@ -100,6 +100,16 @@ function Navbar({ onLanguageChange }: NavbarProps): React.JSX.Element {
               }`}
               onClick={() => navigateTo('/dashboard')}
             >
+              <i className="bi bi-house me-2"></i>
+              Main Menu
+            </button>
+            
+            <button 
+              className={`btn text-start ${
+                location.pathname === '/conversation' ? 'btn-primary' : 'btn-outline-primary'
+              }`}
+              onClick={() => navigateTo('/conversation')}
+            >
               <i className="bi bi-chat-square-text me-2"></i>
               Conversation Practice
             </button>
@@ -133,6 +143,26 @@ function Navbar({ onLanguageChange }: NavbarProps): React.JSX.Element {
               <i className="bi bi-book me-2"></i>
               Stories
             </button>
+            
+            {/* Admin section - only show if user is admin */}
+            {user?.is_admin && (
+              <>
+                <hr className="my-3" />
+                <h6 className="text-muted px-2 mb-2">
+                  <i className="bi bi-shield-check me-2"></i>
+                  Admin Panel
+                </h6>
+                <button 
+                  className={`btn text-start ${
+                    location.pathname === '/admin' ? 'btn-warning' : 'btn-outline-warning'
+                  }`}
+                  onClick={() => navigateTo('/admin')}
+                >
+                  <i className="bi bi-gear me-2"></i>
+                  Admin Dashboard
+                </button>
+              </>
+            )}
             
             {/* Placeholder for future features */}
             <div className="text-muted small mt-3 px-2">

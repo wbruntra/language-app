@@ -16,6 +16,7 @@ exports.seed = async function (knex) {
       password: '1234',
       first_name: 'Test',
       last_name: 'User',
+      is_admin: true
     }
   ]
 

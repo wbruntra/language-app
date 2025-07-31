@@ -75,6 +75,11 @@ function Stories(): React.JSX.Element {
 
   useEffect(() => {
     if (isDetailView && storyId) {
+      // When in detail view, ensure the list loading gate does not block rendering
+      setLoading(false)
+      // Quick fix to avoid showing previous story content while loading a new one
+      setSelectedStory(null)
+      setLoadingStory(true)
       // Load specific story if we're in detail view
       fetchStoryDetails(storyId)
     } else {
@@ -166,7 +171,7 @@ function Stories(): React.JSX.Element {
     return new Date(dateString).toLocaleDateString()
   }
 
-  if (loading) {
+  if (!isDetailView && loading) {
     return (
       <Container fluid className="mt-4">
         <div className="text-center">
@@ -185,9 +190,15 @@ function Stories(): React.JSX.Element {
         <Alert variant="danger">
           <Alert.Heading>Error</Alert.Heading>
           <p>{error}</p>
-          <Button variant="outline-danger" onClick={fetchStories}>
-            Try Again
-          </Button>
+          {isDetailView ? (
+            <Button variant="outline-danger" onClick={() => storyId && fetchStoryDetails(storyId)}>
+              Try Again
+            </Button>
+          ) : (
+            <Button variant="outline-danger" onClick={fetchStories}>
+              Try Again
+            </Button>
+          )}
         </Alert>
       </Container>
     )
@@ -237,7 +248,7 @@ function Stories(): React.JSX.Element {
 
         {/* Panels Grid */}
         <Row className="mb-4">
-          {selectedStory.images.panels.map((panel) => (
+          {(selectedStory.images?.panels ?? []).map((panel) => (
             <Col key={panel.panelNumber} lg={6} className="mb-4">
               <div className="panel border rounded overflow-hidden shadow-sm">
                 <div className="panel-header bg-dark text-white text-center py-2">

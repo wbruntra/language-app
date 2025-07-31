@@ -3,9 +3,11 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Login from './components/Login'
 import MainLayout from './components/MainLayout'
 import Dashboard from './components/Dashboard'
+import Conversation from './components/Conversation'
 import Vocabulary from './components/Vocabulary'
 import TabooGame from './components/TabooGame'
 import Stories from './components/Stories'
+import Admin from './components/Admin'
 import ProtectedRoute from './components/ProtectedRoute'
 import { useUser } from './hooks/useUser'
 
@@ -54,6 +56,10 @@ function App(): React.JSX.Element {
             element={<Dashboard />} 
           />
           <Route 
+            path="conversation" 
+            element={<Conversation />} 
+          />
+          <Route 
             path="vocabulary" 
             element={<Vocabulary />} 
           />
@@ -68,6 +74,10 @@ function App(): React.JSX.Element {
           <Route 
             path="stories/:storyId" 
             element={<Stories />} 
+          />
+          <Route 
+            path="admin" 
+            element={<Admin />} 
           />
         </Route>
         

@@ -24,12 +24,15 @@ const conversationsRouter = require('./routes/conversations')
 const vocabRouter = require('./routes/vocab')
 const tabooRouter = require('./routes/taboo')
 const storiesRouter = require('./routes/stories')
+const adminRouter = require('./routes/admin')
+const { requireAdmin } = require('./middleware/adminAuth')
 
 app.use('/api', requireAuth, transcriptionsRouter) // keeps /transcribe and health
 app.use('/api/conversations', requireAuth, conversationsRouter) // new routes
 app.use('/api/vocab', requireAuth, vocabRouter)
 app.use('/api/taboo', requireAuth, tabooRouter)
 app.use('/api/stories', requireAuth, storiesRouter)
+app.use('/api/admin', requireAuth, requireAdmin, adminRouter) // admin routes with admin middleware
 
 app.use(function (req, res, next) {
   res.status(404).json({ error: 'Not Found' })

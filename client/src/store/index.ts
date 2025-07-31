@@ -2,6 +2,7 @@ import { configureStore } from '@reduxjs/toolkit'
 import languageHelperReducer from './languageHelperSlice'
 import userReducer from './userSlice'
 import tabooGameReducer from './tabooGameSlice'
+import storiesReducer from './storiesSlice'
 import type { RootState } from '../types'
 
 export const store = configureStore({
@@ -9,6 +10,7 @@ export const store = configureStore({
     languageHelper: languageHelperReducer,
     user: userReducer,
     tabooGame: tabooGameReducer,
+    stories: storiesReducer,
   },
 })
 
